@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getVehicles } from "@/lib/supabase/queries";
 
@@ -7,6 +10,12 @@ export default async function VeiculosPage() {
 
   return (
     <AppShell title="Veículos">
+      <div className="flex justify-end">
+        <Button asChild>
+          <Link href="/veiculos/novo">+ Novo veículo</Link>
+        </Button>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-3">
         {(vehicles.length > 0 ? vehicles : [{ id: "empty", name: "Nenhum veículo", model: "Cadastre o seu primeiro veículo", is_default: false, is_active: true }]).map((vehicle) => (
           <Card key={vehicle.id ?? vehicle.name} className="p-5">

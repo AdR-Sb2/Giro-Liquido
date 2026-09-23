@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, getRecentEarnings } from "@/lib/supabase/queries";
 
@@ -13,6 +16,12 @@ export default async function GanhosPage() {
 
   return (
     <AppShell title="Ganhos">
+      <div className="flex justify-end">
+        <Button asChild>
+          <Link href="/ganhos/novo">+ Novo ganho</Link>
+        </Button>
+      </div>
+
       <section className="grid gap-4 md:grid-cols-3">
         {summary.map((item) => (
           <Card key={item.label} className="p-5">

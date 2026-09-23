@@ -134,6 +134,25 @@ export async function getVehicles() {
   return data ?? [];
 }
 
+export async function getPlatforms() {
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("platforms")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  return data ?? [];
+}
+
 export async function getGoals() {
   const supabase = await createServerSupabase();
   const {
