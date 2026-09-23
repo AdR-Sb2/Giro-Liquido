@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type VehicleOption = {
   id: string;
@@ -47,6 +47,7 @@ function CreateExpenseForm() {
 
   useEffect(() => {
     async function loadVehicles() {
+      const supabaseBrowser = getSupabaseBrowserClient();
       const { data: userData } = await supabaseBrowser.auth.getUser();
       if (!userData.user) {
         router.push("/entrar");
@@ -73,6 +74,7 @@ function CreateExpenseForm() {
     setMessage(null);
 
     try {
+      const supabaseBrowser = getSupabaseBrowserClient();
       const { data: userData } = await supabaseBrowser.auth.getUser();
       const user = userData.user;
 

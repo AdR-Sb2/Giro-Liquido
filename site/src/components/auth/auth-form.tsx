@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Informe um e-mail válido."),
@@ -38,6 +38,7 @@ function LoginForm() {
     setMessage(null);
 
     try {
+      const supabaseBrowser = getSupabaseBrowserClient();
       const { error } = await supabaseBrowser.auth.signInWithPassword({
         email: values.email,
         password: values.password,
@@ -113,6 +114,7 @@ function SignupForm() {
     setMessage(null);
 
     try {
+      const supabaseBrowser = getSupabaseBrowserClient();
       const { error } = await supabaseBrowser.auth.signUp({
         email: values.email,
         password: values.password,
