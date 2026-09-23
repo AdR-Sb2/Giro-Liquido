@@ -42,7 +42,6 @@ export default function Home() {
         <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
           <a href="#funcionalidades" className="hover:text-white">Funcionalidades</a>
           <a href="#indicadores" className="hover:text-white">Indicadores</a>
-          <a href="#precos" className="hover:text-white">Planos</a>
         </nav>
 
         <div className="flex items-center gap-3">
@@ -155,30 +154,32 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="precos" className="py-10">
+      <section id="gratuito" className="py-10">
         <div className="mb-8 text-center">
-          <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Simples e acessível</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Acesso total</p>
           <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
-            Comece a controlar seu dinheiro como profissional.
+            Tudo gratuito para começar a controlar seu dinheiro melhor.
           </h2>
         </div>
 
-        <div className="mx-auto max-w-xl rounded-3xl border border-slate-800 bg-slate-900/80 p-8 text-center shadow-glow">
-          <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Plano inicial</p>
-          <h3 className="mt-3 text-3xl font-semibold text-white">Giro Básico</h3>
-          <div className="mt-4 flex items-end justify-center gap-2">
-            <span className="text-5xl font-bold text-white">R$ 29</span>
-            <span className="pb-2 text-slate-400">/mês</span>
+        <div className="mx-auto max-w-2xl rounded-3xl border border-brand-500/30 bg-slate-900/80 p-8 text-center shadow-glow">
+          <div className="mb-4 inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-4 py-2 text-sm font-medium text-brand-300">
+            Grátis para sempre
           </div>
+          <h3 className="text-3xl font-semibold text-white">Giro Líquido</h3>
+          <p className="mt-4 text-lg text-slate-300">
+            Sem mensalidade, sem cobrança escondida e sem limite para começar a organizar seus ganhos,
+            despesas e metas do dia a dia.
+          </p>
           <ul className="mt-6 space-y-3 text-left text-slate-300">
             <li>• Veículos e turnos ilimitados</li>
             <li>• Ganhos e despesas por categoria</li>
             <li>• Metas e relatórios por período</li>
-            <li>• Suporte por e-mail</li>
+            <li>• Suporte direto com acesso completo</li>
           </ul>
           <div className="mt-8">
             <Button size="lg" asChild>
-              <Link href="/cadastro">Assinar agora</Link>
+              <Link href="/cadastro">Começar grátis</Link>
             </Button>
           </div>
         </div>
