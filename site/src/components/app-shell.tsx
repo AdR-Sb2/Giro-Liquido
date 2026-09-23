@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { BarChart3, Gauge, LogOut, Settings, Truck, Wallet } from "lucide-react";
+import {
+  BarChart3,
+  Gauge,
+  LogOut,
+  Settings,
+  Target,
+  Truck,
+  Wallet,
+  Clock3,
+  ChartColumnBig,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,7 +18,10 @@ const menu = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/ganhos", label: "Ganhos", icon: Wallet },
   { href: "/despesas", label: "Despesas", icon: BarChart3 },
+  { href: "/turnos", label: "Turnos", icon: Clock3 },
+  { href: "/metas", label: "Metas", icon: Target },
   { href: "/veiculos", label: "Veículos", icon: Truck },
+  { href: "/relatorios", label: "Relatórios", icon: ChartColumnBig },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
