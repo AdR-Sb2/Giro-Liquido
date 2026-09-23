@@ -1,20 +1,16 @@
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
+import { formatCurrency, getRecentEarnings } from "@/lib/supabase/queries";
 
-const summary = [
-  { label: "Receita bruta", value: "R$ 14.350", change: "+12%" },
-  { label: "Média por turno", value: "R$ 510", change: "+8%" },
-  { label: "Receita por km", value: "R$ 4,88", change: "+3%" },
-];
+export default async function GanhosPage() {
+  const rows = await getRecentEarnings();
 
-const rows = [
-  { date: "23/09", platform: "iFood", vehicle: "Moto 1", amount: "R$ 920,00" },
-  { date: "22/09", platform: "Uber", vehicle: "Moto 2", amount: "R$ 740,50" },
-  { date: "21/09", platform: "99", vehicle: "Carro", amount: "R$ 1.120,00" },
-  { date: "20/09", platform: "Particular", vehicle: "Moto 1", amount: "R$ 530,00" },
-];
+  const summary = [
+    { label: "Receita bruta", value: formatCurrency(rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0)), change: "+12%" },
+    { label: "Participação", value: `${rows.length || 0} registros`, change: "+8%" },
+    { label: "Último ganho", value: rows[0] ? formatCurrency(Number(rows[0].amount ?? 0)) : "R$ 0,00", change: "+3%" },
+  ];
 
-export default function GanhosPage() {
   return (
     <AppShell title="Ganhos">
       <section className="grid gap-4 md:grid-cols-3">
@@ -31,7 +27,7 @@ export default function GanhosPage() {
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
           <h3 className="text-lg font-semibold text-white">Últimos ganhos</h3>
           <span className="rounded-full bg-brand-500/10 px-2.5 py-1 text-xs font-medium text-brand-300">
-            4 registros
+            {rows.length || 0} registros
           </span>
         </div>
 
@@ -41,19 +37,25 @@ export default function GanhosPage() {
               <tr>
                 <th className="px-6 py-3 font-medium">Data</th>
                 <th className="px-6 py-3 font-medium">Plataforma</th>
-                <th className="px-6 py-3 font-medium">Veículo</th>
+                <th className="px-6 py-3 font-medium">Descrição</th>
                 <th className="px-6 py-3 font-medium">Valor</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.date}-${row.platform}`} className="border-t border-slate-800 text-slate-200">
-                  <td className="px-6 py-4">{row.date}</td>
-                  <td className="px-6 py-4">{row.platform}</td>
-                  <td className="px-6 py-4">{row.vehicle}</td>
-                  <td className="px-6 py-4 font-medium text-brand-300">{row.amount}</td>
-                </tr>
-              ))}
+              {(rows.length > 0 ? rows : [{ id: "empty", earned_at: new Date().toISOString(), description: "Nenhum ganho registrado", amount: 0, platforms: { name: "-" } }]).map((row) => {
+                const platformName = Array.isArray(row.platforms)
+                  ? row.platforms[0]?.name
+                  : row.platforms?.name;
+
+                return (
+                  <tr key={row.id} className="border-t border-slate-800 text-slate-200">
+                    <td className="px-6 py-4">{new Date(row.earned_at).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-6 py-4">{platformName ?? "-"}</td>
+                    <td className="px-6 py-4">{row.description ?? "Sem descrição"}</td>
+                    <td className="px-6 py-4 font-medium text-brand-300">{formatCurrency(Number(row.amount ?? 0))}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

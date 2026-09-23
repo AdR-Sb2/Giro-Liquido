@@ -1,20 +1,18 @@
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
+import { formatCurrency, getRecentExpenses } from "@/lib/supabase/queries";
 
-const summary = [
-  { label: "Despesas totais", value: "R$ 7.720", change: "-6%" },
-  { label: "Combustível", value: "R$ 2.860", change: "-2%" },
-  { label: "Manutenção", value: "R$ 1.420", change: "+12%" },
-];
+export default async function DespesasPage() {
+  const rows = await getRecentExpenses();
 
-const rows = [
-  { date: "23/09", category: "Combustível", desc: "Posto Nobre", amount: "R$ 180,00" },
-  { date: "22/09", category: "Alimentação", desc: "Refeição no trânsito", amount: "R$ 64,90" },
-  { date: "21/09", category: "Manutenção", desc: "Troca de óleo", amount: "R$ 420,00" },
-  { date: "20/09", category: "Outros", desc: "Celular + internet", amount: "R$ 110,00" },
-];
+  const total = rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 
-export default function DespesasPage() {
+  const summary = [
+    { label: "Despesas totais", value: formatCurrency(total), change: "-6%" },
+    { label: "Combustível", value: formatCurrency(rows.filter((row) => row.category === "fuel").reduce((sum, item) => sum + Number(item.amount ?? 0), 0)), change: "-2%" },
+    { label: "Manutenção", value: formatCurrency(rows.filter((row) => row.category === "maintenance").reduce((sum, item) => sum + Number(item.amount ?? 0), 0)), change: "+12%" },
+  ];
+
   return (
     <AppShell title="Despesas">
       <section className="grid gap-4 md:grid-cols-3">
@@ -31,7 +29,7 @@ export default function DespesasPage() {
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
           <h3 className="text-lg font-semibold text-white">Despesas recentes</h3>
           <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300">
-            4 lançamentos
+            {rows.length || 0} lançamentos
           </span>
         </div>
 
@@ -46,12 +44,12 @@ export default function DespesasPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.date}-${row.category}`} className="border-t border-slate-800 text-slate-200">
-                  <td className="px-6 py-4">{row.date}</td>
-                  <td className="px-6 py-4">{row.category}</td>
-                  <td className="px-6 py-4">{row.desc}</td>
-                  <td className="px-6 py-4 font-medium text-red-300">-{row.amount}</td>
+              {(rows.length > 0 ? rows : [{ id: "empty", expense_at: new Date().toISOString(), category: "other", description: "Nenhuma despesa registrada", amount: 0 }]).map((row) => (
+                <tr key={row.id} className="border-t border-slate-800 text-slate-200">
+                  <td className="px-6 py-4">{new Date(row.expense_at).toLocaleDateString("pt-BR")}</td>
+                  <td className="px-6 py-4">{row.category ?? "other"}</td>
+                  <td className="px-6 py-4">{row.description ?? "Sem descrição"}</td>
+                  <td className="px-6 py-4 font-medium text-red-300">-{formatCurrency(Number(row.amount ?? 0))}</td>
                 </tr>
               ))}
             </tbody>
