@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  ArrowRight,
   Bike,
   BriefcaseBusiness,
   CarFront,
@@ -64,10 +63,6 @@ type OnboardingDraft = {
 
 const defaultDraft: OnboardingDraft = {
   currentStep: 0,
-  vehicleType: "nao_quero",
-  vehicleIsDefault: true,
-  goalType: "later",
-  goalPeriod: "monthly",
 };
 
 const workTypeOptions = [
@@ -143,9 +138,7 @@ export default function OnboardingPage() {
 
   const workTypeForm = useForm<z.infer<typeof workTypeSchema>>({
     resolver: zodResolver(workTypeSchema),
-    defaultValues: {
-      workType: draft.workType ?? "delivery",
-    },
+    defaultValues: {},
   });
 
   useEffect(() => {
@@ -516,7 +509,7 @@ export default function OnboardingPage() {
                     <label className="flex items-center gap-3 text-sm text-slate-300">
                       <input
                         type="checkbox"
-                        checked={draft.vehicleIsDefault ?? true}
+                        checked={draft.vehicleIsDefault ?? false}
                         onChange={(event) => updateDraft({ vehicleIsDefault: event.target.checked })}
                         className="h-4 w-4 rounded border-slate-600 bg-slate-900"
                       />
@@ -615,12 +608,13 @@ export default function OnboardingPage() {
                     <div>
                       <label className="mb-2 block text-sm text-slate-300">Período</label>
                       <select
-                        value={draft.goalPeriod ?? "monthly"}
+                        value={draft.goalPeriod ?? ""}
                         onChange={(event) =>
                           updateDraft({ goalPeriod: event.target.value as OnboardingDraft["goalPeriod"] })
                         }
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
                       >
+                        <option value="">Selecione o período</option>
                         <option value="daily">Diário</option>
                         <option value="weekly">Semanal</option>
                         <option value="monthly">Mensal</option>
@@ -707,10 +701,11 @@ export default function OnboardingPage() {
                   <div>
                     <label className="mb-2 block text-sm text-slate-300">Plataforma</label>
                     <select
-                      value={draft.firstEarningPlatform ?? "ifood"}
+                      value={draft.firstEarningPlatform ?? ""}
                       onChange={(event) => updateDraft({ firstEarningPlatform: event.target.value })}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
                     >
+                      <option value="">Selecione a plataforma</option>
                       <option value="ifood">iFood</option>
                       <option value="rappi">Rappi</option>
                       <option value="uber">Uber</option>

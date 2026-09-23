@@ -2,17 +2,12 @@ import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 
 const summary = [
-  { label: "Turnos ativos", value: "9" },
-  { label: "Horas no mês", value: "286h" },
-  { label: "Distância total", value: "2.940 km" },
+  { label: "Turnos ativos", value: "0" },
+  { label: "Horas no mês", value: "0h" },
+  { label: "Distância total", value: "0 km" },
 ];
 
-const rows = [
-  { day: "Seg 23", hours: "7h 30m", platform: "iFood", revenue: "R$ 920" },
-  { day: "Ter 22", hours: "6h 15m", platform: "Uber", revenue: "R$ 740" },
-  { day: "Qua 21", hours: "8h 00m", platform: "99", revenue: "R$ 1.120" },
-  { day: "Qui 20", hours: "5h 45m", platform: "Particular", revenue: "R$ 530" },
-];
+const rows: Array<{ day: string; hours: string; platform: string; revenue: string }> = [];
 
 export default function TurnosPage() {
   return (
@@ -42,14 +37,22 @@ export default function TurnosPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.day}-${row.platform}`} className="border-t border-slate-800 text-slate-200">
-                  <td className="px-6 py-4">{row.day}</td>
-                  <td className="px-6 py-4">{row.hours}</td>
-                  <td className="px-6 py-4">{row.platform}</td>
-                  <td className="px-6 py-4 font-medium text-brand-300">{row.revenue}</td>
+              {rows.length === 0 ? (
+                <tr className="border-t border-slate-800 text-slate-300">
+                  <td colSpan={4} className="px-6 py-8 text-center">
+                    Nenhum turno registrado ainda.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                rows.map((row) => (
+                  <tr key={`${row.day}-${row.platform}`} className="border-t border-slate-800 text-slate-200">
+                    <td className="px-6 py-4">{row.day}</td>
+                    <td className="px-6 py-4">{row.hours}</td>
+                    <td className="px-6 py-4">{row.platform}</td>
+                    <td className="px-6 py-4 font-medium text-brand-300">{row.revenue}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
