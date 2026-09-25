@@ -59,7 +59,9 @@ export async function middleware(request: NextRequest) {
 
     const onboardingCompleted = Boolean(profile?.onboarding_completed);
 
-    if (pathname === "/onboarding" && onboardingCompleted) {
+    const isEditingProfile = request.nextUrl.searchParams.get("editar") === "1";
+
+    if (pathname === "/onboarding" && onboardingCompleted && !isEditingProfile) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 

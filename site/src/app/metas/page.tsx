@@ -10,7 +10,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 type GoalRecord = {
   id: string;
   name: string;
-  goal_type: "revenue" | "profit" | "savings";
+  goal_type: "revenue" | "profit" | "savings" | "hours" | "distance";
   goal_period: "daily" | "weekly" | "monthly" | "yearly";
   target_amount: number;
   start_date: string;
@@ -22,7 +22,35 @@ type GoalRecord = {
 type SummarySnapshot = {
   total_revenue: number;
   total_profit: number;
+  total_worked_minutes?: number;
+  total_distance_km?: number;
 };
+
+function getGoalUnit(goalType: GoalRecord["goal_type"]): "currency" | "hours" | "distance" {
+  if (goalType === "hours") {
+    return "hours";
+  }
+
+  if (goalType === "distance") {
+    return "distance";
+  }
+
+  return "currency";
+}
+
+function formatGoalValue(goalType: GoalRecord["goal_type"], value: number) {
+  const unit = getGoalUnit(goalType);
+
+  if (unit === "hours") {
+    return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`;
+  }
+
+  if (unit === "distance") {
+    return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`;
+  }
+
+  return formatCurrency(value);
+}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -170,7 +198,14 @@ export default function MetasPage() {
 
   const mappedGoals = goals.map((goal) => {
     const target = Number(goal.target_amount ?? 0);
-    const currentValue = goal.goal_type === "profit" ? Number(summary.total_profit ?? 0) : goal.goal_type === "revenue" ? Number(summary.total_revenue ?? 0) : Number(summary.total_profit ?? 0);
+    const currentValue =
+      goal.goal_type === "revenue"
+        ? Number(summary.total_revenue ?? 0)
+        : goal.goal_type === "hours"
+          ? Number(summary.total_worked_minutes ?? 0) / 60
+          : goal.goal_type === "distance"
+            ? Number(summary.total_distance_km ?? 0)
+            : Number(summary.total_profit ?? 0);
     const achieved = target > 0 ? Math.min(100, (currentValue / target) * 100) : 0;
     const remaining = Math.max(0, target - currentValue);
     const endDate = goal.end_date ? new Date(goal.end_date) : null;
@@ -220,6 +255,8 @@ export default function MetasPage() {
                 <option value="revenue">Faturamento</option>
                 <option value="profit">Lucro</option>
                 <option value="savings">Economia</option>
+                <option value="hours">Horas trabalhadas</option>
+                <option value="distance">Quilômetros</option>
               </select>
             </label>
 
@@ -307,15 +344,15 @@ export default function MetasPage() {
               <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between text-sm text-slate-300">
                   <span>Meta</span>
-                  <strong className="text-white">{formatCurrency(goal.target_amount)}</strong>
+                  <strong className="text-white">{formatGoalValue(goal.goal_type, goal.target_amount)}</strong>
                 </div>
                 <div className="flex items-center justify-between text-sm text-slate-300">
                   <span>Atual</span>
-                  <strong className="text-brand-300">{formatCurrency(goal.currentValue)}</strong>
+                  <strong className="text-brand-300">{formatGoalValue(goal.goal_type, goal.currentValue)}</strong>
                 </div>
                 <div className="flex items-center justify-between text-sm text-slate-300">
                   <span>Falta</span>
-                  <strong className="text-red-300">{formatCurrency(goal.remaining)}</strong>
+                  <strong className="text-red-300">{formatGoalValue(goal.goal_type, goal.remaining)}</strong>
                 </div>
               </div>
 

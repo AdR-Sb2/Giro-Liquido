@@ -15,6 +15,34 @@ html {
   scroll-behavior: smooth;
 }
 
+@keyframes rotax-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rotax-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: rotax-fade-in 160ms ease-out both;
+}
+
+.animate-sheet-up {
+  animation: rotax-sheet-up 200ms ease-out both;
+}
+
 body {
   min-height: 100vh;
   background:

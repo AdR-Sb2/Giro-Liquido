@@ -127,6 +127,24 @@ export function getPeriodRange(period: string | undefined) {
   };
 }
 
+export type DashboardProfile = {
+  full_name: string | null;
+  onboarding_completed: boolean | null;
+  birth_date: string | null;
+  city: string | null;
+  state: string | null;
+  work_types: string[] | null;
+  tracking_priorities: string[] | null;
+  favorite_platforms: string[] | null;
+  custom_platforms: string[] | null;
+  preferred_expense_categories: string[] | null;
+  custom_expense_categories: string[] | null;
+  planned_hours_per_day: number | null;
+};
+
+const extendedProfileColumns =
+  "full_name, onboarding_completed, birth_date, city, state, work_types, tracking_priorities, favorite_platforms, custom_platforms, preferred_expense_categories, custom_expense_categories, planned_hours_per_day";
+
 export async function getDashboardData(period: string | undefined = "today") {
   const supabase = await createServerSupabase();
   const {
@@ -139,8 +157,37 @@ export async function getDashboardData(period: string | undefined = "today") {
 
   const range = getPeriodRange(period);
 
-  const [{ data: summaryData }, { data: previousSummaryData }, { data: activeSessionData }, { data: profileData }, { data: vehiclesData }, { data: earningsData }, { data: expensesData }, { data: goalsData }] =
-    await Promise.all([
+  const loadProfile = async (): Promise<DashboardProfile | null> => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(extendedProfileColumns)
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!error) {
+      return (data ?? null) as DashboardProfile | null;
+    }
+
+    const { data: fallbackData } = await supabase
+      .from("profiles")
+      .select("full_name, onboarding_completed, birth_date, city, state")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return (fallbackData ?? null) as DashboardProfile | null;
+  };
+
+  const [
+    { data: summaryData },
+    { data: previousSummaryData },
+    { data: activeSessionData },
+    profileData,
+    { data: vehiclesData },
+    { data: earningsData },
+    { data: expensesData },
+    { data: goalsData },
+    { data: fuelExpensesData },
+  ] = await Promise.all([
       supabase.rpc("get_financial_summary", {
         p_start_date: range.startDate,
         p_end_date: range.endDate,
@@ -157,15 +204,27 @@ export async function getDashboardData(period: string | undefined = "today") {
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("profiles").select("full_name,onboarding_completed").eq("id", user.id).maybeSingle(),
+      loadProfile(),
       supabase.from("vehicles").select("*").eq("user_id", user.id).order("is_default", { ascending: false }).order("created_at", { ascending: false }).limit(10),
       supabase.from("earnings").select("id, amount, earned_at, earning_date, description, platforms(name)").eq("user_id", user.id).gte("earning_date", range.startDate).lte("earning_date", range.endDate).order("earned_at", { ascending: false }).limit(5),
       supabase.from("expenses").select("id, amount, expense_at, expense_date, category, description").eq("user_id", user.id).gte("expense_date", range.startDate).lte("expense_date", range.endDate).order("expense_at", { ascending: false }).limit(5),
       supabase.from("goals").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }).limit(3),
+      supabase
+        .from("expenses")
+        .select("amount")
+        .eq("user_id", user.id)
+        .eq("category", "fuel")
+        .gte("expense_date", range.startDate)
+        .lte("expense_date", range.endDate),
     ]);
 
   const summary = (summaryData as DashboardSummary[] | null)?.[0] ?? defaultSummary;
   const comparisonSummary = (previousSummaryData as DashboardSummary[] | null)?.[0] ?? defaultSummary;
+
+  const fuelTotal = (fuelExpensesData ?? []).reduce(
+    (total, expense) => total + Number(expense.amount ?? 0),
+    0,
+  );
 
   return {
     user,
@@ -176,6 +235,7 @@ export async function getDashboardData(period: string | undefined = "today") {
     goals: goalsData ?? [],
     summary,
     comparisonSummary,
+    fuelTotal,
     activeSession: activeSessionData,
     period: range,
   };

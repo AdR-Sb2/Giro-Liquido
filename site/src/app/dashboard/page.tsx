@@ -1,10 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/app-shell";
+import { ProfileCompletionBanner } from "@/components/profile-completion-banner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TurnControls } from "@/components/turn-controls";
+import { formatGoalTarget, type GoalTypeOption } from "@/lib/goals/options";
+import { getProfileCompletion } from "@/lib/profile-completion";
 import { formatCurrency, formatDistance, formatMinutes, getDashboardData, getPercentChange } from "@/lib/supabase/queries";
+import { findTrackingPriority } from "@/lib/tracking";
 
 type DashboardPageProps = {
   searchParams?: Promise<{ period?: string }> | { period?: string };
@@ -19,7 +23,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     redirect("/entrar");
   }
 
-  const { profile, summary, comparisonSummary, activeSession, vehicles, goals, period: range } = data;
+  const { profile, summary, comparisonSummary, activeSession, vehicles, goals, fuelTotal } = data;
 
   const dateLabel = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
@@ -35,23 +39,79 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const hoursComparison = getPercentChange(summary.total_worked_minutes, comparisonSummary.total_worked_minutes);
   const distanceComparison = getPercentChange(summary.total_distance_km, comparisonSummary.total_distance_km);
 
-  const sessionDurationMinutes = activeSession?.started_at
-    ? Math.max(0, (Date.now() - new Date(activeSession.started_at).getTime()) / 60000)
-    : 0;
+  const mainVehicle = vehicles.find((vehicle) => vehicle.is_default) ?? vehicles[0];
+
+  const completion = getProfileCompletion({
+    fullName: profile?.full_name ?? null,
+    birthDate: profile?.birth_date ?? null,
+    city: profile?.city ?? null,
+    state: profile?.state ?? null,
+    workTypes: profile?.work_types ?? null,
+    vehicleType: mainVehicle?.vehicle_type ?? null,
+    vehicleBrand: mainVehicle?.make ?? null,
+    vehicleModel: mainVehicle?.model ?? null,
+    licensePlate: mainVehicle?.license_plate ?? null,
+    odometerKm: mainVehicle?.odometer_km ?? null,
+    ownershipType: mainVehicle?.ownership_type ?? null,
+    platforms: profile?.favorite_platforms ?? null,
+    customPlatforms: profile?.custom_platforms ?? null,
+    expenseCategories: profile?.preferred_expense_categories ?? null,
+    customExpenseCategories: profile?.custom_expense_categories ?? null,
+    trackingPriorities: profile?.tracking_priorities ?? null,
+    goalType: goals[0]?.goal_type ?? null,
+    goalTarget: goals[0]?.target_amount ?? null,
+    workDays: goals[0]?.work_days ?? null,
+  });
+
+  const trackingPriorities: string[] = profile?.tracking_priorities ?? [];
+  const wantsFuel = trackingPriorities.includes("fuel");
 
   const metrics = [
-    { label: "Faturamento", value: formatCurrency(summary.total_revenue), comparison: revenueComparison, tone: "positive" },
-    { label: "Despesas", value: formatCurrency(summary.total_expenses), comparison: expensesComparison, tone: "negative" },
-    { label: "Lucro líquido", value: formatCurrency(summary.total_profit), comparison: profitComparison, tone: "positive" },
-    { label: "Horas", value: formatMinutes(summary.total_worked_minutes), comparison: hoursComparison, tone: "neutral" },
-    { label: "Km rodados", value: formatDistance(summary.total_distance_km), comparison: distanceComparison, tone: "neutral" },
-    { label: "R$/hora", value: summary.profit_per_hour ? formatCurrency(summary.profit_per_hour) : "Sem dados", comparison: null, tone: "neutral" },
-    { label: "R$/km", value: summary.profit_per_km ? formatCurrency(summary.profit_per_km) : "Sem dados", comparison: null, tone: "neutral" },
+    { id: "revenue", label: "Faturamento", value: formatCurrency(summary.total_revenue), comparison: revenueComparison, tone: "positive", hint: "Soma dos ganhos registrados no período." },
+    { id: "expenses", label: "Despesas", value: formatCurrency(summary.total_expenses), comparison: expensesComparison, tone: "negative", hint: "Total de despesas registradas no período." },
+    { id: "profit", label: "Lucro líquido", value: formatCurrency(summary.total_profit), comparison: profitComparison, tone: "positive", hint: "Faturamento menos despesas registradas no período." },
+    { id: "hours", label: "Horas", value: formatMinutes(summary.total_worked_minutes), comparison: hoursComparison, tone: "neutral", hint: "Total de horas trabalhadas no período." },
+    { id: "km", label: "Km rodados", value: formatDistance(summary.total_distance_km), comparison: distanceComparison, tone: "neutral", hint: "Distância total registrada no período." },
+    { id: "perHour", label: "R$/hora", value: summary.profit_per_hour ? formatCurrency(summary.profit_per_hour) : "Sem dados", comparison: null, tone: "neutral", hint: "Lucro líquido dividido pelas horas trabalhadas." },
+    { id: "perKm", label: "R$/km", value: summary.profit_per_km ? formatCurrency(summary.profit_per_km) : "Sem dados", comparison: null, tone: "neutral", hint: "Lucro líquido dividido pelos quilômetros registrados." },
   ];
+
+  const orderedMetrics = metrics
+    .map((metric) => ({
+      metric,
+      order: trackingPriorities.findIndex(
+        (priority) => findTrackingPriority(priority)?.metricId === metric.id,
+      ),
+    }))
+    .sort((first, second) => {
+      if (first.order === second.order) {
+        return 0;
+      }
+      if (first.order === -1) {
+        return 1;
+      }
+      if (second.order === -1) {
+        return -1;
+      }
+      return first.order - second.order;
+    })
+    .map((entry) => entry.metric);
 
   const goalProgress = goals[0];
   const goalTarget = Number(goalProgress?.target_amount ?? 0);
-  const goalPercent = goalTarget > 0 ? Math.min(100, (summary.total_profit / goalTarget) * 100) : 0;
+  const goalType = (goalProgress?.goal_type ?? "profit") as GoalTypeOption["value"];
+  const goalUnit: GoalTypeOption["unit"] =
+    goalType === "hours" ? "hours" : goalType === "distance" ? "distance" : "currency";
+  const goalCurrent =
+    goalType === "revenue"
+      ? summary.total_revenue
+      : goalType === "hours"
+        ? summary.total_worked_minutes / 60
+        : goalType === "distance"
+          ? summary.total_distance_km
+          : summary.total_profit;
+  const goalPercent = goalTarget > 0 ? Math.min(100, (goalCurrent / goalTarget) * 100) : 0;
+  const showCompletionBanner = Boolean(profile?.onboarding_completed) && completion.percent < 100;
 
   return (
     <AppShell title="Dashboard">
@@ -83,23 +143,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <TurnControls activeSession={activeSession} />
         </div>
 
+        {showCompletionBanner ? (
+          <ProfileCompletionBanner
+            percent={completion.percent}
+            pendingLabels={completion.pendingSections.map((section) => section.label)}
+          />
+        ) : null}
+
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => (
-            <Card key={metric.label} className="p-4 sm:p-5" title={
-              metric.label === "Faturamento"
-                ? "Soma dos ganhos registrados no período."
-                : metric.label === "Despesas"
-                  ? "Total de despesas registradas no período."
-                  : metric.label === "Lucro líquido"
-                    ? "Faturamento menos despesas registradas no período."
-                    : metric.label === "Horas"
-                      ? "Total de horas trabalhadas no período."
-                      : metric.label === "Km rodados"
-                        ? "Distância total registrada no período."
-                        : metric.label === "R$/hora"
-                          ? "Lucro líquido dividido pelas horas trabalhadas."
-                          : "Lucro líquido dividido pelos quilômetros registrados."
-            }>
+          {orderedMetrics.map((metric) => (
+            <Card key={metric.id} className="p-4 sm:p-5" title={metric.hint}>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{metric.label}</p>
                 {metric.comparison !== null ? (
@@ -119,6 +172,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </div>
             </Card>
           ))}
+
+          {wantsFuel ? (
+            <Card className="p-4 sm:p-5" title="Total de despesas de combustível registradas no período.">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Combustível</p>
+              </div>
+              <div className="mt-4">
+                <h2 className="text-2xl font-semibold tracking-tight text-white">{formatCurrency(fuelTotal)}</h2>
+              </div>
+            </Card>
+          ) : null}
         </div>
       </section>
 
@@ -156,13 +220,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 text-sm text-slate-300">
                   <span>{goalProgress.name}</span>
-                  <span>{formatCurrency(summary.total_profit)} / {formatCurrency(goalTarget)}</span>
+                  <span>
+                    {formatGoalTarget(goalUnit, goalCurrent)} / {formatGoalTarget(goalUnit, goalTarget)}
+                  </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
                   <div className="h-full rounded-full bg-brand-500" style={{ width: `${goalPercent}%` }} />
                 </div>
               </div>
-              <p className="text-sm text-slate-400">Falta {formatCurrency(Math.max(0, goalTarget - summary.total_profit))} para atingir a meta.</p>
+              <p className="text-sm text-slate-400">
+                Faltam {formatGoalTarget(goalUnit, Math.max(0, goalTarget - goalCurrent))} para atingir a meta.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

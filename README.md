@@ -33,6 +33,9 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_EKJCByrq7sv6u2Ro-gwDHg_GqlD3
 4. `004_goals_maintenance_records.sql`
 5. `005_functions_triggers_views_rls.sql`
 6. `006_seed_platforms.sql`
+7. `007_onboarding_selectors.sql` (campos usados pelos seletores do onboarding)
+8. `008_onboarding_personalization.sql` (tipos de trabalho, prioridades, posse do veículo e metas por horas/km)
+9. `009_goal_progress_hours_distance.sql` (progresso de metas por horas trabalhadas e quilômetros)
 
 ## Cenário coberto
 
