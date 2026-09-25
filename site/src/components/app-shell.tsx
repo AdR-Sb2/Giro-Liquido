@@ -44,10 +44,10 @@ const moreMenu = [
 ];
 
 const quickActions = [
-  { href: "/ganhos/novo", label: "+ Ganho" },
+  { href: "/ganhos/novo?quick=earnings", label: "+ Ganho" },
+  { href: "/despesas/novo?quick=fuel", label: "+ Abastecimento" },
   { href: "/despesas/novo", label: "+ Despesa" },
   { href: "/turnos", label: "Iniciar turno" },
-  { href: "/despesas/novo", label: "Abastecimento" },
 ];
 
 export function AppShell({ title, children }: { title: string; children: React.ReactNode }) {

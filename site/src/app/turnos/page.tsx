@@ -3,10 +3,17 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { formatCurrency, formatDistance, formatMinutes, getDashboardData, getWorkSessions } from "@/lib/supabase/queries";
+import { TurnControls } from "@/components/turn-controls";
+import { formatDistance, formatMinutes, getWorkSessions } from "@/lib/supabase/queries";
 
-export default async function TurnosPage() {
-  const [dashboard, sessions] = await Promise.all([getDashboardData(), getWorkSessions(8)]);
+type TurnosPageProps = {
+  searchParams?: Promise<{ period?: string }> | { period?: string };
+};
+
+export default async function TurnosPage({ searchParams }: TurnosPageProps) {
+  const params = await Promise.resolve(searchParams ?? {});
+  const period = params.period === "week" || params.period === "month" ? params.period : "today";
+  const sessions = await getWorkSessions(8, period);
 
   const activeSession = sessions.find((session) => !session.ended_at) ?? null;
   const totalMinutes = sessions.reduce((sum, session) => sum + Number(session.duration_minutes ?? 0), 0);
@@ -20,6 +27,12 @@ export default async function TurnosPage() {
 
   return (
     <AppShell title="Turnos">
+      <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-800 bg-slate-900/80 p-2">
+        <a href="?period=today" className={period === "today" ? "rounded-full bg-brand-500/10 px-3 py-1.5 text-sm font-medium text-brand-300" : "rounded-full px-3 py-1.5 text-sm text-slate-300"}>Hoje</a>
+        <a href="?period=week" className={period === "week" ? "rounded-full bg-brand-500/10 px-3 py-1.5 text-sm font-medium text-brand-300" : "rounded-full px-3 py-1.5 text-sm text-slate-300"}>Semana</a>
+        <a href="?period=month" className={period === "month" ? "rounded-full bg-brand-500/10 px-3 py-1.5 text-sm font-medium text-brand-300" : "rounded-full px-3 py-1.5 text-sm text-slate-300"}>Mês</a>
+      </div>
+
       <section className="grid gap-4 md:grid-cols-3">
         {summary.map((item) => (
           <Card key={item.label} className="p-5">
@@ -29,31 +42,7 @@ export default async function TurnosPage() {
         ))}
       </section>
 
-      {activeSession ? (
-        <Card className="p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-brand-300">Turno ativo</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">{formatMinutes(Math.max(0, (Date.now() - new Date(activeSession.started_at).getTime()) / 60000))}</h3>
-            </div>
-            <Button asChild variant="secondary">
-              <Link href="/dashboard">Finalizar turno</Link>
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <Card className="p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Status</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Turno não iniciado</h3>
-            </div>
-            <Button asChild>
-              <Link href="/dashboard">Iniciar turno</Link>
-            </Button>
-          </div>
-        </Card>
-      )}
+      <TurnControls activeSession={activeSession} />
 
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 sm:px-6">

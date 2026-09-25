@@ -2,8 +2,14 @@ import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDistance, formatMinutes, getDashboardData } from "@/lib/supabase/queries";
 
-export default async function RelatoriosPage() {
-  const data = await getDashboardData();
+type RelatoriosPageProps = {
+  searchParams?: Promise<{ period?: string }> | { period?: string };
+};
+
+export default async function RelatoriosPage({ searchParams }: RelatoriosPageProps) {
+  const params = await Promise.resolve(searchParams ?? {});
+  const period = params.period === "week" || params.period === "month" ? params.period : "today";
+  const data = await getDashboardData(period);
 
   const summary = data?.summary ?? {
     total_revenue: 0,
@@ -26,17 +32,17 @@ export default async function RelatoriosPage() {
     <AppShell title="Relatórios">
       <div className="flex flex-wrap gap-2">
         {[
-          "Hoje",
-          "Semana",
-          "Mês",
-        ].map((period) => (
-          <button
-            key={period}
-            type="button"
-            className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300"
+          { key: "today", label: "Hoje" },
+          { key: "week", label: "Semana" },
+          { key: "month", label: "Mês" },
+        ].map((item) => (
+          <a
+            key={item.key}
+            href={`?period=${item.key}`}
+            className={period === item.key ? "rounded-full bg-brand-500/10 px-3 py-1.5 text-xs font-medium text-brand-300" : "rounded-full border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300"}
           >
-            {period}
-          </button>
+            {item.label}
+          </a>
         ))}
       </div>
 

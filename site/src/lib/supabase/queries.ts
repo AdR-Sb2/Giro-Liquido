@@ -67,7 +67,67 @@ function toDateString(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-export async function getDashboardData() {
+export function getPeriodRange(period: string | undefined) {
+  const today = new Date();
+  const end = new Date(today);
+  end.setHours(23, 59, 59, 999);
+
+  const normalizedPeriod = period === "week" || period === "month" ? period : "today";
+
+  if (normalizedPeriod === "week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+
+    const previousEnd = new Date(start);
+    previousEnd.setDate(previousEnd.getDate() - 1);
+    previousEnd.setHours(23, 59, 59, 999);
+
+    const previousStart = new Date(previousEnd);
+    previousStart.setDate(previousStart.getDate() - 6);
+    previousStart.setHours(0, 0, 0, 0);
+
+    return {
+      startDate: toDateString(start),
+      endDate: toDateString(end),
+      previousStartDate: toDateString(previousStart),
+      previousEndDate: toDateString(previousEnd),
+    };
+  }
+
+  if (normalizedPeriod === "month") {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const previousEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+    const previousStart = new Date(previousEnd.getFullYear(), previousEnd.getMonth(), 1);
+
+    return {
+      startDate: toDateString(start),
+      endDate: toDateString(end),
+      previousStartDate: toDateString(previousStart),
+      previousEndDate: toDateString(previousEnd),
+    };
+  }
+
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+
+  const previousEnd = new Date(start);
+  previousEnd.setDate(previousEnd.getDate() - 1);
+  previousEnd.setHours(23, 59, 59, 999);
+
+  const previousStart = new Date(previousEnd);
+  previousStart.setHours(0, 0, 0, 0);
+  previousStart.setDate(previousStart.getDate() - 0);
+
+  return {
+    startDate: toDateString(start),
+    endDate: toDateString(end),
+    previousStartDate: toDateString(previousStart),
+    previousEndDate: toDateString(previousEnd),
+  };
+}
+
+export async function getDashboardData(period: string | undefined = "today") {
   const supabase = await createServerSupabase();
   const {
     data: { user },
@@ -77,27 +137,17 @@ export async function getDashboardData() {
     return null;
   }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const previousStart = new Date(todayStart);
-  previousStart.setDate(previousStart.getDate() - 1);
-
-  const previousEnd = new Date(todayEnd);
-  previousEnd.setDate(previousEnd.getDate() - 1);
+  const range = getPeriodRange(period);
 
   const [{ data: summaryData }, { data: previousSummaryData }, { data: activeSessionData }, { data: profileData }, { data: vehiclesData }, { data: earningsData }, { data: expensesData }, { data: goalsData }] =
     await Promise.all([
       supabase.rpc("get_financial_summary", {
-        p_start_date: toDateString(todayStart),
-        p_end_date: toDateString(todayEnd),
+        p_start_date: range.startDate,
+        p_end_date: range.endDate,
       }),
       supabase.rpc("get_financial_summary", {
-        p_start_date: toDateString(previousStart),
-        p_end_date: toDateString(previousEnd),
+        p_start_date: range.previousStartDate,
+        p_end_date: range.previousEndDate,
       }),
       supabase
         .from("work_sessions")
@@ -109,8 +159,8 @@ export async function getDashboardData() {
         .maybeSingle(),
       supabase.from("profiles").select("full_name,onboarding_completed").eq("id", user.id).maybeSingle(),
       supabase.from("vehicles").select("*").eq("user_id", user.id).order("is_default", { ascending: false }).order("created_at", { ascending: false }).limit(10),
-      supabase.from("earnings").select("id, amount, earned_at, earning_date, description, platforms(name)").eq("user_id", user.id).order("earned_at", { ascending: false }).limit(5),
-      supabase.from("expenses").select("id, amount, expense_at, expense_date, category, description").eq("user_id", user.id).order("expense_at", { ascending: false }).limit(5),
+      supabase.from("earnings").select("id, amount, earned_at, earning_date, description, platforms(name)").eq("user_id", user.id).gte("earning_date", range.startDate).lte("earning_date", range.endDate).order("earned_at", { ascending: false }).limit(5),
+      supabase.from("expenses").select("id, amount, expense_at, expense_date, category, description").eq("user_id", user.id).gte("expense_date", range.startDate).lte("expense_date", range.endDate).order("expense_at", { ascending: false }).limit(5),
       supabase.from("goals").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }).limit(3),
     ]);
 
@@ -127,6 +177,7 @@ export async function getDashboardData() {
     summary,
     comparisonSummary,
     activeSession: activeSessionData,
+    period: range,
   };
 }
 
@@ -248,7 +299,7 @@ export async function getGoals() {
   return data ?? [];
 }
 
-export async function getWorkSessions(limit = 10) {
+export async function getWorkSessions(limit = 10, period: string | undefined = "today") {
   const supabase = await createServerSupabase();
   const {
     data: { user },
@@ -258,10 +309,14 @@ export async function getWorkSessions(limit = 10) {
     return [];
   }
 
+  const range = getPeriodRange(period);
+
   const { data } = await supabase
     .from("work_sessions")
     .select("id, status, started_at, ended_at, work_date, duration_minutes, distance_km, notes")
     .eq("user_id", user.id)
+    .gte("work_date", range.startDate)
+    .lte("work_date", range.endDate)
     .order("started_at", { ascending: false })
     .limit(limit);
 

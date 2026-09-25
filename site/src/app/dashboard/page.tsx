@@ -3,22 +3,31 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { TurnControls } from "@/components/turn-controls";
 import { formatCurrency, formatDistance, formatMinutes, getDashboardData, getPercentChange } from "@/lib/supabase/queries";
 
-export default async function DashboardPage() {
-  const data = await getDashboardData();
+type DashboardPageProps = {
+  searchParams?: Promise<{ period?: string }> | { period?: string };
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await Promise.resolve(searchParams ?? {});
+  const period = params.period === "week" || params.period === "month" ? params.period : "today";
+  const data = await getDashboardData(period);
 
   if (!data) {
     redirect("/entrar");
   }
 
-  const { profile, summary, comparisonSummary, activeSession, vehicles, goals } = data;
+  const { profile, summary, comparisonSummary, activeSession, vehicles, goals, period: range } = data;
 
   const dateLabel = new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
     day: "numeric",
     month: "long",
   }).format(new Date());
+
+  const periodLabel = period === "week" ? "Últimos 7 dias" : period === "month" ? "Este mês" : "Hoje";
 
   const revenueComparison = getPercentChange(summary.total_revenue, comparisonSummary.total_revenue);
   const expensesComparison = getPercentChange(summary.total_expenses, comparisonSummary.total_expenses);
@@ -50,7 +59,7 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-3 rounded-3xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Resumo do dia</p>
+              <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Resumo {periodLabel}</p>
               <h1 className="mt-2 text-2xl font-semibold text-white">
                 {profile?.full_name ? `Olá, ${profile.full_name.split(" ")[0]} 👋` : "Olá 👋"}
               </h1>
@@ -62,27 +71,16 @@ export default async function DashboardPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-slate-300 capitalize">{dateLabel}</p>
-            {activeSession ? (
-              <div className="flex items-center gap-2 rounded-full bg-brand-500/10 px-3 py-1.5 text-xs font-medium text-brand-200">
-                <span className="h-2 w-2 rounded-full bg-brand-400" />
-                {formatMinutes(Math.round(sessionDurationMinutes))}
-              </div>
-            ) : (
-              <span className="text-sm text-slate-400">Aguardando início do turno</span>
-            )}
+            <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-[11px] text-slate-300">
+              <a href="?period=today" className={period === "today" ? "text-brand-300" : "text-slate-300"}>Hoje</a>
+              <span className="text-slate-600">|</span>
+              <a href="?period=week" className={period === "week" ? "text-brand-300" : "text-slate-300"}>Semana</a>
+              <span className="text-slate-600">|</span>
+              <a href="?period=month" className={period === "month" ? "text-brand-300" : "text-slate-300"}>Mês</a>
+            </div>
           </div>
 
-          {activeSession ? (
-            <div className="flex flex-col gap-3 rounded-2xl border border-brand-500/20 bg-brand-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-brand-200">Turno em andamento</p>
-                <p className="mt-1 text-base font-medium text-white">{formatMinutes(Math.round(sessionDurationMinutes))}</p>
-              </div>
-              <Button type="button" variant="secondary" size="sm" className="w-full sm:w-auto">
-                Finalizar turno
-              </Button>
-            </div>
-          ) : null}
+          <TurnControls activeSession={activeSession} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
