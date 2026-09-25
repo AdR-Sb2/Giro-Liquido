@@ -145,6 +145,44 @@ export type DashboardProfile = {
 const extendedProfileColumns =
   "full_name, onboarding_completed, birth_date, city, state, work_types, tracking_priorities, favorite_platforms, custom_platforms, preferred_expense_categories, custom_expense_categories, planned_hours_per_day";
 
+export type GoalProgressRow = {
+  goal_id: string;
+  name: string;
+  goal_type: "revenue" | "profit" | "savings" | "hours" | "distance";
+  goal_period: "daily" | "weekly" | "monthly" | "yearly";
+  target_amount: number;
+  period_start: string;
+  period_end: string;
+  current_amount: number;
+  progress_percent: number;
+  is_completed: boolean;
+  progress_note: string | null;
+};
+
+/**
+ * Progresso das metas ativas, calculado pela própria meta (RPC `get_goal_progress`).
+ * Não recebe o período do Dashboard de propósito: trocar Hoje/Semana/Mês não pode
+ * alterar o valor acumulado nem o percentual de uma meta.
+ */
+export async function getActiveGoalProgress(): Promise<GoalProgressRow[]> {
+  const supabase = await createServerSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const { data, error } = await supabase.rpc("get_goal_progress");
+
+  if (error) {
+    return [];
+  }
+
+  return (data as GoalProgressRow[] | null) ?? [];
+}
+
 export async function getDashboardData(period: string | undefined = "today") {
   const supabase = await createServerSupabase();
   const {

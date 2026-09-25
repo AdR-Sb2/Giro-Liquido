@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { TurnControls } from "@/components/turn-controls";
 import { formatGoalTarget, type GoalTypeOption } from "@/lib/goals/options";
 import { getProfileCompletion } from "@/lib/profile-completion";
-import { formatCurrency, formatDistance, formatMinutes, getDashboardData, getPercentChange } from "@/lib/supabase/queries";
+import { formatCurrency, formatDistance, formatMinutes, getActiveGoalProgress, getDashboardData, getPercentChange } from "@/lib/supabase/queries";
 import { findTrackingPriority } from "@/lib/tracking";
 
 type DashboardPageProps = {
@@ -17,7 +17,12 @@ type DashboardPageProps = {
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await Promise.resolve(searchParams ?? {});
   const period = params.period === "week" || params.period === "month" ? params.period : "today";
-  const data = await getDashboardData(period);
+  // O período do Dashboard alimenta apenas os KPIs de movimentações. A meta é consultada
+  // separadamente para seguir o período configurado nela.
+  const [data, goalProgressRows] = await Promise.all([
+    getDashboardData(period),
+    getActiveGoalProgress(),
+  ]);
 
   if (!data) {
     redirect("/entrar");
@@ -97,20 +102,21 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     })
     .map((entry) => entry.metric);
 
-  const goalProgress = goals[0];
-  const goalTarget = Number(goalProgress?.target_amount ?? 0);
-  const goalType = (goalProgress?.goal_type ?? "profit") as GoalTypeOption["value"];
+  const activeGoal = goals[0];
+  const goalProgress = activeGoal
+    ? goalProgressRows.find((row) => row.goal_id === activeGoal.id) ?? null
+    : null;
+  const goalTarget = Number(goalProgress?.target_amount ?? activeGoal?.target_amount ?? 0);
+  const goalCurrent = Number(goalProgress?.current_amount ?? 0);
   const goalUnit: GoalTypeOption["unit"] =
-    goalType === "hours" ? "hours" : goalType === "distance" ? "distance" : "currency";
-  const goalCurrent =
-    goalType === "revenue"
-      ? summary.total_revenue
-      : goalType === "hours"
-        ? summary.total_worked_minutes / 60
-        : goalType === "distance"
-          ? summary.total_distance_km
-          : summary.total_profit;
-  const goalPercent = goalTarget > 0 ? Math.min(100, (goalCurrent / goalTarget) * 100) : 0;
+    (goalProgress?.goal_type ?? activeGoal?.goal_type) === "hours"
+      ? "hours"
+      : (goalProgress?.goal_type ?? activeGoal?.goal_type) === "distance"
+        ? "distance"
+        : "currency";
+  const goalPercent = goalProgress
+    ? Math.min(100, Math.max(0, Number(goalProgress.progress_percent ?? 0)))
+    : 0;
   const showCompletionBanner = Boolean(profile?.onboarding_completed) && completion.percent < 100;
 
   return (
@@ -215,21 +221,25 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             {goalProgress ? <span className="text-xs text-slate-400">{goalPercent.toFixed(0)}%</span> : null}
           </div>
 
-          {goalProgress ? (
+          {activeGoal ? (
             <div className="space-y-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 text-sm text-slate-300">
-                  <span>{goalProgress.name}</span>
-                  <span>
-                    {formatGoalTarget(goalUnit, goalCurrent)} / {formatGoalTarget(goalUnit, goalTarget)}
-                  </span>
+                  <span>{activeGoal.name}</span>
+                  {goalProgress ? (
+                    <span>
+                      {formatGoalTarget(goalUnit, goalCurrent)} / {formatGoalTarget(goalUnit, goalTarget)}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
                   <div className="h-full rounded-full bg-brand-500" style={{ width: `${goalPercent}%` }} />
                 </div>
               </div>
               <p className="text-sm text-slate-400">
-                Faltam {formatGoalTarget(goalUnit, Math.max(0, goalTarget - goalCurrent))} para atingir a meta.
+                {goalProgress
+                  ? `Faltam ${formatGoalTarget(goalUnit, Math.max(0, goalTarget - goalCurrent))} para atingir a meta.`
+                  : "Não foi possível calcular o progresso agora."}
               </p>
             </div>
           ) : (
