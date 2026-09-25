@@ -14,21 +14,18 @@ type VehicleOption = {
 };
 
 const categories = [
-  "fuel",
-  "food",
-  "maintenance",
-  "oil_change",
-  "tires",
-  "insurance",
-  "vehicle_rental",
-  "vehicle_financing",
-  "parking",
-  "toll",
-  "platform_fee",
-  "mobile_internet",
-  "equipment",
-  "taxes",
-  "other",
+  { value: "fuel", label: "Combustível" },
+  { value: "maintenance", label: "Manutenção" },
+  { value: "tires", label: "Pneus" },
+  { value: "oil_change", label: "Óleo" },
+  { value: "toll", label: "Pedágio" },
+  { value: "parking", label: "Estacionamento" },
+  { value: "food", label: "Alimentação" },
+  { value: "mobile_internet", label: "Celular/Internet" },
+  { value: "taxes", label: "Documentação" },
+  { value: "equipment", label: "Peças" },
+  { value: "cleaning", label: "Lavagem" },
+  { value: "other", label: "Outros" },
 ];
 
 function CreateExpenseForm() {
@@ -142,8 +139,8 @@ function CreateExpenseForm() {
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-brand-400"
           >
             {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+              <option key={category.value} value={category.value}>
+                {category.label}
               </option>
             ))}
           </select>
@@ -153,6 +150,7 @@ function CreateExpenseForm() {
           <span className="text-sm text-slate-300">Valor</span>
           <input
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={form.amount}
@@ -188,6 +186,17 @@ function CreateExpenseForm() {
           />
           <span className="text-sm text-slate-300">Despesa recorrente</span>
         </label>
+
+        {form.recurring ? (
+          <label className="space-y-2 md:col-span-1">
+            <span className="text-sm text-slate-300">Frequência</span>
+            <select className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-brand-400">
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+              <option value="yearly">Anual</option>
+            </select>
+          </label>
+        ) : null}
 
         <div className="md:col-span-2">
           <label className="space-y-2">

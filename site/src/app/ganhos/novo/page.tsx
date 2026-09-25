@@ -135,6 +135,7 @@ function CreateEarningForm() {
           <span className="text-sm text-slate-300">Valor base</span>
           <input
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={form.amount}
@@ -149,6 +150,7 @@ function CreateEarningForm() {
           <span className="text-sm text-slate-300">Gorjeta</span>
           <input
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={form.tips}
@@ -162,6 +164,7 @@ function CreateEarningForm() {
           <span className="text-sm text-slate-300">Bônus</span>
           <input
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={form.bonus}
@@ -171,6 +174,17 @@ function CreateEarningForm() {
           />
         </label>
 
+        <div className="md:col-span-1">
+          <div className="rounded-2xl border border-brand-500/30 bg-brand-500/5 p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-200">Total</p>
+            <p className="mt-2 text-2xl font-semibold text-white">
+              {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+                Number(form.amount || 0) + Number(form.tips || 0) + Number(form.bonus || 0),
+              )}
+            </p>
+          </div>
+        </div>
+
         <div className="md:col-span-2">
           <label className="space-y-2">
             <span className="text-sm text-slate-300">Descrição</span>
@@ -178,7 +192,7 @@ function CreateEarningForm() {
               value={form.description}
               onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition focus:border-brand-400"
-              placeholder="Ex.: Pedido do almoço, corrida de ida e volta..."
+              placeholder="Opcional — ex.: entrega de almoço, corrida de ida e volta..."
             />
           </label>
         </div>

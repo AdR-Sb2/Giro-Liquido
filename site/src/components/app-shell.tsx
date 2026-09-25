@@ -10,18 +10,21 @@ import {
   Gauge,
   LogOut,
   Menu,
+  MoreHorizontal,
+  Plus,
   Settings,
   Target,
   Truck,
   Wallet,
   X,
   ChartColumnBig,
+  House,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const menu = [
+const desktopMenu = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/ganhos", label: "Ganhos", icon: Wallet },
   { href: "/despesas", label: "Despesas", icon: BarChart3 },
@@ -32,22 +35,26 @@ const menu = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-const quickActions = [
-  { href: "/ganhos/novo", label: "Novo ganho" },
-  { href: "/despesas/novo", label: "Nova despesa" },
-  { href: "/veiculos/novo", label: "Novo veículo" },
+const moreMenu = [
+  { href: "/despesas", label: "Despesas", icon: BarChart3 },
+  { href: "/metas", label: "Metas", icon: Target },
+  { href: "/veiculos", label: "Veículos", icon: Truck },
+  { href: "/relatorios", label: "Relatórios", icon: ChartColumnBig },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function AppShell({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+const quickActions = [
+  { href: "/ganhos/novo", label: "+ Ganho" },
+  { href: "/despesas/novo", label: "+ Despesa" },
+  { href: "/turnos", label: "Iniciar turno" },
+  { href: "/despesas/novo", label: "Abastecimento" },
+];
+
+export function AppShell({ title, children }: { title: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (pathname === href) {
@@ -60,11 +67,12 @@ export function AppShell({
   const closeMenus = () => {
     setQuickMenuOpen(false);
     setMobileNavOpen(false);
+    setMoreMenuOpen(false);
   };
 
   const navItems = (
     <nav className="space-y-2">
-      {menu.map(({ href, label, icon: Icon }) => (
+      {desktopMenu.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -92,12 +100,19 @@ export function AppShell({
         />
       )}
 
+      {moreMenuOpen && (
+        <button
+          type="button"
+          aria-label="Fechar mais opções"
+          onClick={closeMenus}
+          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 pb-24 lg:px-8 lg:pb-6">
         <aside className="hidden w-72 shrink-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 lg:block">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">
-              G
-            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">G</div>
             <div>
               <p className="text-lg font-semibold">Giro Líquido</p>
               <p className="text-xs text-slate-400">Painel do motorista</p>
@@ -122,9 +137,7 @@ export function AppShell({
         >
           <div className="mb-6 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">
-                G
-              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">G</div>
               <div>
                 <p className="text-base font-semibold">Giro Líquido</p>
                 <p className="text-[11px] text-slate-400">Painel do motorista</p>
@@ -151,8 +164,8 @@ export function AppShell({
           </div>
         </aside>
 
-        <main className="flex-1 space-y-6 pb-20 lg:pb-0">
-          <header className="rounded-2xl border border-slate-800 bg-slate-900/80 px-5 py-4">
+        <main className="flex-1 space-y-6 pb-24 lg:pb-0">
+          <header className="sticky top-0 z-20 rounded-2xl border border-slate-800/90 bg-slate-900/80 px-4 py-3 shadow-[0_10px_30px_rgba(2,6,23,0.35)] backdrop-blur-xl sm:px-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <button
@@ -165,18 +178,13 @@ export function AppShell({
                 </button>
 
                 <div>
-                  <p className="text-sm uppercase tracking-[0.2em] text-brand-300">Dashboard</p>
-                  <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-brand-300">Giro Líquido</p>
+                  <h1 className="mt-1 text-xl font-semibold text-white sm:text-2xl">{title}</h1>
                 </div>
               </div>
 
-              <div className="relative">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setQuickMenuOpen((current) => !current)}
-                  className="whitespace-nowrap"
-                >
+              <div className="relative hidden lg:block">
+                <Button type="button" variant="secondary" onClick={() => setQuickMenuOpen((current) => !current)} className="whitespace-nowrap">
                   + Novo registro
                 </Button>
 
@@ -186,23 +194,16 @@ export function AppShell({
                       type="button"
                       aria-label="Fechar opções de registro"
                       onClick={() => setQuickMenuOpen(false)}
-                      className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
+                      className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm"
                     />
 
-                    <div className="fixed inset-x-4 bottom-4 z-50 rounded-3xl border border-slate-700 bg-slate-900 p-3 shadow-2xl lg:absolute lg:inset-auto lg:right-0 lg:top-full lg:mt-2 lg:w-56 lg:rounded-2xl lg:p-2">
-                      <div className="mb-2 flex items-center justify-between px-2 pt-1 text-xs uppercase tracking-[0.18em] text-slate-400 lg:hidden">
-                        <span>Registro</span>
-                        <button type="button" aria-label="Fechar" onClick={() => setQuickMenuOpen(false)}>
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-
+                    <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl">
                       {quickActions.map(({ href, label }) => (
                         <Link
-                          key={href}
+                          key={href + label}
                           href={href}
                           onClick={() => setQuickMenuOpen(false)}
-                          className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-slate-100 transition hover:bg-slate-800 hover:text-white lg:py-2.5"
+                          className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-100 transition hover:bg-slate-800 hover:text-white"
                         >
                           {label}
                           <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -219,26 +220,81 @@ export function AppShell({
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800 bg-slate-950/95 px-2 py-2 backdrop-blur-sm lg:hidden">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {menu.map(({ href, label, icon: Icon }) => (
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-800/80 bg-slate-950/95 px-2 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-[0_-10px_25px_rgba(2,6,23,0.5)] backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-center gap-2">
+          <Link href="/dashboard" onClick={closeMenus} className={cn("flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition", isActive("/dashboard") ? "bg-brand-500/10 text-brand-300" : "text-slate-300") }>
+            <House className="h-4 w-4" />
+            Início
+          </Link>
+          <Link href="/ganhos" onClick={closeMenus} className={cn("flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition", isActive("/ganhos") ? "bg-brand-500/10 text-brand-300" : "text-slate-300") }>
+            <Wallet className="h-4 w-4" />
+            Ganhos
+          </Link>
+          <button type="button" onClick={() => setQuickMenuOpen((current) => !current)} className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-xl font-semibold text-slate-950 shadow-lg shadow-brand-500/30 transition hover:scale-[1.02]">
+            <Plus className="h-5 w-5" />
+          </button>
+          <Link href="/turnos" onClick={closeMenus} className={cn("flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition", isActive("/turnos") ? "bg-brand-500/10 text-brand-300" : "text-slate-300") }>
+            <Clock3 className="h-4 w-4" />
+            Turnos
+          </Link>
+          <button type="button" onClick={() => setMoreMenuOpen((current) => !current)} className={cn("flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition", moreMenuOpen ? "bg-brand-500/10 text-brand-300" : "text-slate-300") }>
+            <MoreHorizontal className="h-4 w-4" />
+            Mais
+          </button>
+        </div>
+      </nav>
+
+      {quickMenuOpen && (
+        <div className="fixed inset-x-4 bottom-20 z-50 rounded-3xl border border-slate-700 bg-slate-900 p-3 shadow-2xl lg:hidden">
+          <div className="mb-2 flex items-center justify-between px-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span>Registro rápido</span>
+            <button type="button" aria-label="Fechar" onClick={() => setQuickMenuOpen(false)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {quickActions.map(({ href, label }) => (
+            <Link
+              key={href + label}
+              href={href}
+              onClick={() => setQuickMenuOpen(false)}
+              className="flex items-center justify-between rounded-xl px-3 py-3 text-sm text-slate-100 transition hover:bg-slate-800 hover:text-white"
+            >
+              {label}
+              <ChevronRight className="h-4 w-4 text-slate-500" />
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {moreMenuOpen && (
+        <div className="fixed inset-x-4 bottom-20 z-50 rounded-3xl border border-slate-700 bg-slate-900 p-3 shadow-2xl lg:hidden">
+          <div className="mb-2 flex items-center justify-between px-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span>Mais</span>
+            <button type="button" aria-label="Fechar" onClick={() => setMoreMenuOpen(false)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {moreMenu.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               onClick={closeMenus}
               className={cn(
-                "flex min-w-[84px] flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] transition",
-                isActive(href)
-                  ? "bg-brand-500/10 text-brand-300"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                "flex items-center justify-between rounded-xl px-3 py-3 text-sm text-slate-100 transition hover:bg-slate-800 hover:text-white",
+                isActive(href) ? "bg-brand-500/10 text-white" : "text-slate-300",
               )}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <span className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                {label}
+              </span>
+              <ChevronRight className="h-4 w-4 text-slate-500" />
             </Link>
           ))}
         </div>
-      </nav>
+      )}
     </div>
   );
 }
