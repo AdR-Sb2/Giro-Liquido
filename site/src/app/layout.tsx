@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Giro Líquido | Controle financeiro para entregadores",
+  title: "RotaX | Controle financeiro para entregadores",
   description:
     "Painel financeiro para entregadores, motoboys e trabalhadores autônomos.",
 };

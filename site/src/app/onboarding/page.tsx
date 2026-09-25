@@ -1,6 +1,5 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
   Bike,
@@ -9,128 +8,97 @@ import {
   Check,
   CircleDollarSign,
   Footprints,
+  MapPin,
   Sparkles,
   Target,
   Truck,
   Wallet,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const STORAGE_KEY = "giro_liquido_onboarding_v1";
+const STORAGE_KEY = "rotax_onboarding_v1";
 
-const workTypeSchema = z.object({
-  workType: z.enum([
-    "delivery",
-    "ride_hailing",
-    "logistics",
-    "private_client",
-    "other",
-  ]),
-});
+type WorkType = "delivery" | "ride_hailing" | "logistics" | "private_client" | "other";
+type VehicleType = "motorcycle" | "car" | "bicycle" | "walking" | "other";
+type GoalType = "revenue" | "profit" | "later";
+type GoalPeriod = "daily" | "weekly" | "monthly";
 
-type WorkType = z.infer<typeof workTypeSchema>["workType"];
-type VehicleType = "moto" | "carro" | "bicicleta" | "pedestre" | "nao_quero";
+type PlatformOption = {
+  id: string;
+  name: string;
+  slug: string;
+  platform_type: string;
+};
 
 type OnboardingDraft = {
-  currentStep: number;
-  workType?: WorkType;
-  vehicleType?: VehicleType;
-  vehicleName?: string;
-  vehicleBrand?: string;
-  averageConsumption?: string;
-  fuelPrice?: string;
-  monthlyCost?: string;
-  vehicleIsDefault?: boolean;
-  goalType?: "revenue" | "profit" | "later";
-  goalPeriod?: "daily" | "weekly" | "monthly";
-  goalTarget?: string;
-  goalName?: string;
-  firstEarningAmount?: string;
-  firstEarningPlatform?: string;
-  firstEarningDescription?: string;
-  firstEarningHasBonus?: boolean;
-  skippedAt?: string;
-  completedAt?: string;
+  fullName: string;
+  city: string;
+  state: string;
+  workType: WorkType;
+  vehicleType: VehicleType;
+  vehicleName: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  averageConsumption: string;
+  fuelPrice: string;
+  monthlyCost: string;
+  isVehicleDefault: boolean;
+  platforms: string[];
+  goalType: GoalType;
+  goalPeriod: GoalPeriod;
+  goalTarget: string;
+  goalName: string;
 };
 
 const defaultDraft: OnboardingDraft = {
-  currentStep: 0,
-  vehicleType: "nao_quero",
-  vehicleIsDefault: true,
+  fullName: "",
+  city: "",
+  state: "",
+  workType: "delivery",
+  vehicleType: "other",
+  vehicleName: "",
+  vehicleBrand: "",
+  vehicleModel: "",
+  averageConsumption: "",
+  fuelPrice: "",
+  monthlyCost: "",
+  isVehicleDefault: true,
+  platforms: [],
   goalType: "later",
   goalPeriod: "monthly",
+  goalTarget: "",
+  goalName: "",
 };
 
 const workTypeOptions = [
-  {
-    id: "delivery",
-    label: "Entregas",
-    description: "iFood, Rappi, entregas locais e outros pedidos.",
-    icon: Truck,
-  },
-  {
-    id: "ride_hailing",
-    label: "Corridas por aplicativo",
-    description: "Uber, 99 e corridas particulares.",
-    icon: CarFront,
-  },
-  {
-    id: "logistics",
-    label: "Fretes e logística",
-    description: "Coletas, pequenas cargas e serviços de transporte.",
-    icon: BriefcaseBusiness,
-  },
-  {
-    id: "private_client",
-    label: "Trabalho particular",
-    description: "Serviços diretos para clientes.",
-    icon: Wallet,
-  },
-  {
-    id: "other",
-    label: "Outro",
-    description: "Use o Giro Líquido para acompanhar seu trabalho autônomo.",
-    icon: Sparkles,
-  },
+  { id: "delivery", label: "Entregas", description: "iFood, Rappi e pedidos locais.", icon: Truck },
+  { id: "ride_hailing", label: "Corridas por aplicativo", description: "Uber, 99 e viagens por app.", icon: CarFront },
+  { id: "logistics", label: "Fretes e logística", description: "Coletas e transporte de carga.", icon: BriefcaseBusiness },
+  { id: "private_client", label: "Particular", description: "Clientes diretos e serviços avulsos.", icon: Wallet },
+  { id: "other", label: "Outro", description: "Ajuste conforme seu dia a dia.", icon: Sparkles },
 ] as const;
 
 const vehicleOptions = [
-  { id: "moto", label: "Moto", icon: Bike },
-  { id: "carro", label: "Carro", icon: CarFront },
-  { id: "bicicleta", label: "Bicicleta", icon: Bike },
-  { id: "pedestre", label: "Trabalho a pé", icon: Footprints },
-  { id: "nao_quero", label: "Não quero cadastrar agora", icon: Sparkles },
+  { id: "motorcycle", label: "Moto", icon: Bike },
+  { id: "car", label: "Carro", icon: CarFront },
+  { id: "bicycle", label: "Bicicleta", icon: Bike },
+  { id: "walking", label: "Trabalho a pé", icon: Footprints },
+  { id: "other", label: "Não quero cadastrar agora", icon: Sparkles },
 ] as const;
 
 const steps = [
-  { label: "Lucro", key: "profit" },
-  { label: "Trabalho", key: "work" },
-  { label: "Veículo", key: "vehicle" },
-  { label: "Meta", key: "goal" },
-  { label: "Ganhos", key: "earning" },
-  { label: "Concluir", key: "finish" },
+  { label: "Perfil" },
+  { label: "Trabalho" },
+  { label: "Veículo" },
+  { label: "Plataformas" },
+  { label: "Meta" },
+  { label: "Concluir" },
 ];
-
-function formatCurrency(value: number | string | null | undefined) {
-  const numeric = Number(value ?? 0);
-
-  if (Number.isNaN(numeric)) {
-    return "R$ 0,00";
-  }
-
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(numeric);
-}
 
 function readStoredDraft(): OnboardingDraft {
   if (typeof window === "undefined") {
@@ -138,664 +106,654 @@ function readStoredDraft(): OnboardingDraft {
   }
 
   try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
       return defaultDraft;
     }
 
-    const parsed = JSON.parse(saved) as Partial<OnboardingDraft>;
-    return {
-      ...defaultDraft,
-      ...parsed,
-      currentStep: parsed.currentStep ?? 0,
-    };
+    return { ...defaultDraft, ...JSON.parse(stored) };
   } catch {
     return defaultDraft;
   }
 }
 
+function formatCurrency(value: number | string | null | undefined) {
+  const numeric = Number(value ?? 0);
+  if (Number.isNaN(numeric)) {
+    return "R$ 0,00";
+  }
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(numeric);
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
-  const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [currentStep, setCurrentStep] = useState(() => readStoredDraft().currentStep);
   const [draft, setDraft] = useState<OnboardingDraft>(() => readStoredDraft());
-  const [firstName, setFirstName] = useState("motorista");
-
-  const workTypeForm = useForm<z.infer<typeof workTypeSchema>>({
-    resolver: zodResolver(workTypeSchema),
-    defaultValues: {
-      workType: draft.workType ?? "delivery",
-    },
-  });
+  const [currentStep, setCurrentStep] = useState(0);
+  const [platformOptions, setPlatformOptions] = useState<PlatformOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-    void supabase.auth.getUser().then(({ data }) => {
-      const fullName = data.user?.user_metadata?.full_name ?? data.user?.email ?? "motorista";
-      const label = String(fullName).trim().split(" ")[0] || "motorista";
-      setFirstName(label);
-    });
-  }, []);
+    const persist = () => {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    };
+
+    persist();
+  }, [draft]);
 
   useEffect(() => {
-    const payload = JSON.stringify({
-      ...draft,
-      currentStep,
-      completedAt: draft.completedAt ?? undefined,
-      skippedAt: draft.skippedAt ?? undefined,
-    });
+    const load = async () => {
+      const supabase = getSupabaseBrowserClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    window.localStorage.setItem(STORAGE_KEY, payload);
-  }, [currentStep, draft]);
+      if (!user) {
+        router.replace("/entrar");
+        return;
+      }
 
-  useEffect(() => {
-    if (draft.workType) {
-      workTypeForm.reset({ workType: draft.workType });
-    }
-  }, [draft.workType, workTypeForm]);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, city, state, onboarding_completed")
+        .eq("id", user.id)
+        .maybeSingle();
 
-  const isQuestionStep = currentStep >= 1 && currentStep <= 4;
+      const nextDraft: Partial<OnboardingDraft> = {
+        fullName: profile?.full_name ?? user.user_metadata?.full_name ?? draft.fullName,
+        city: profile?.city ?? draft.city,
+        state: profile?.state ?? draft.state,
+      };
 
-  function updateDraft(updates: Partial<OnboardingDraft>) {
-    setDraft((previous) => ({ ...previous, ...updates }));
+      setDraft((previous) => ({ ...previous, ...nextDraft }));
+
+      const { data: platformsData } = await supabase
+        .from("platforms")
+        .select("id, slug, name, platform_type")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      setPlatformOptions(platformsData ?? []);
+
+      if (profile?.onboarding_completed) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setLoading(false);
+    };
+
+    void load();
+  }, [router]);
+
+  const progressPercent = useMemo(() => ((currentStep + 1) / steps.length) * 100, [currentStep]);
+
+  const currentVehicleLabel = useMemo(
+    () => vehicleOptions.find((option) => option.id === draft.vehicleType)?.label ?? "Veículo",
+    [draft.vehicleType],
+  );
+
+  function updateDraft(nextValues: Partial<OnboardingDraft>) {
+    setDraft((previous) => ({ ...previous, ...nextValues }));
+  }
+
+  function goBack() {
+    setCurrentStep((previous) => Math.max(0, previous - 1));
   }
 
   function goNext() {
     setCurrentStep((previous) => Math.min(previous + 1, steps.length - 1));
   }
 
-  function goBack() {
-    setCurrentStep((previous) => Math.max(previous - 1, 0));
-  }
+  async function persistOnboarding(completed: boolean) {
+    const supabase = getSupabaseBrowserClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  function handleExplore() {
-    const nextDraft = { ...draft, skippedAt: new Date().toISOString() };
-    setDraft(nextDraft);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextDraft));
-    router.push("/dashboard");
-  }
+    if (userError || !user) {
+      throw new Error("Sua sessão expirou. Faça login novamente.");
+    }
 
-  function finishOnboarding() {
-    const completed = {
-      ...draft,
-      completedAt: new Date().toISOString(),
-      currentStep: steps.length - 1,
+    const profilePayload: Record<string, unknown> = {
+      id: user.id,
+      full_name: draft.fullName.trim() || user.user_metadata?.full_name || user.email?.split("@")[0] || "Motorista",
+      city: draft.city.trim() || null,
+      state: draft.state ? draft.state.trim().slice(0, 2).toUpperCase() : null,
+      onboarding_completed: completed,
     };
 
-    setDraft(completed);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
-    router.push("/dashboard");
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("accepted_terms_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!existingProfile?.accepted_terms_at && completed) {
+      profilePayload.accepted_terms_at = new Date().toISOString();
+    }
+
+    const { error: profileError } = await supabase.from("profiles").upsert(profilePayload as Record<string, unknown>, { onConflict: "id" });
+    if (profileError) {
+      throw new Error(profileError.message);
+    }
+
+    if (draft.vehicleType !== "other" && draft.vehicleType !== "walking") {
+      const vehicleName = draft.vehicleName.trim() || currentVehicleLabel;
+      const vehicleType = draft.vehicleType;
+
+      const { data: existingVehicle } = await supabase
+        .from("vehicles")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const vehicleInsert = {
+        user_id: user.id,
+        name: vehicleName,
+        vehicle_type: vehicleType,
+        make: draft.vehicleBrand.trim() || null,
+        model: draft.vehicleModel.trim() || null,
+        average_consumption_km_per_liter: draft.averageConsumption ? Number(draft.averageConsumption) : null,
+        estimated_fuel_price: draft.fuelPrice ? Number(draft.fuelPrice.replace(",", ".")) : null,
+        fixed_monthly_cost: draft.monthlyCost ? Number(draft.monthlyCost.replace(",", ".")) : 0,
+        is_default: draft.isVehicleDefault || !existingVehicle,
+        is_active: true,
+      };
+
+      if (existingVehicle) {
+        const { error: vehicleError } = await supabase
+          .from("vehicles")
+          .update({
+            ...vehicleInsert,
+            is_default: draft.isVehicleDefault || existingVehicle.id === existingVehicle.id,
+          })
+          .eq("id", existingVehicle.id)
+          .eq("user_id", user.id);
+
+        if (vehicleError) {
+          throw new Error(vehicleError.message);
+        }
+      } else {
+        const { error: vehicleError } = await supabase.from("vehicles").insert(vehicleInsert);
+        if (vehicleError) {
+          throw new Error(vehicleError.message);
+        }
+      }
+    }
+
+    if (draft.goalType !== "later" && Number(draft.goalTarget) > 0) {
+      const target = Number(draft.goalTarget);
+      const goalName = draft.goalName.trim() || (draft.goalType === "profit" ? "Meta de lucro" : "Meta de faturamento");
+      const goalPayload = {
+        user_id: user.id,
+        name: goalName,
+        goal_type: draft.goalType,
+        goal_period: draft.goalPeriod,
+        target_amount: target,
+        start_date: new Date().toISOString().slice(0, 10),
+        end_date: null,
+        is_active: true,
+      };
+
+      const { data: existingGoals } = await supabase
+        .from("goals")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (existingGoals && existingGoals.length > 0) {
+        const { error: goalError } = await supabase
+          .from("goals")
+          .update(goalPayload)
+          .eq("id", existingGoals[0].id)
+          .eq("user_id", user.id);
+
+        if (goalError) {
+          throw new Error(goalError.message);
+        }
+      } else {
+        const { error: goalError } = await supabase.from("goals").insert(goalPayload);
+        if (goalError) {
+          throw new Error(goalError.message);
+        }
+      }
+    }
+
+    return true;
   }
 
-  const workTypeValue = draft.workType ?? workTypeForm.getValues("workType");
+  async function finishOnboarding() {
+    setSaving(true);
+    setErrorMessage(null);
 
-  const progressPercent = ((currentStep + 1) / steps.length) * 100;
+    try {
+      await persistOnboarding(true);
+      window.localStorage.removeItem(STORAGE_KEY);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível concluir o onboarding.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveProgressAndContinue(nextStep: number) {
+    setSaving(true);
+    setErrorMessage(null);
+
+    try {
+      await persistOnboarding(false);
+      setCurrentStep(nextStep);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível salvar o progresso.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-white">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 px-6 py-5 text-sm text-slate-300">
+          Preparando seu painel...
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-white sm:px-6">
       <div className="mx-auto max-w-md sm:max-w-2xl">
-        {welcomeOpen ? (
-          <section className="space-y-5 pb-12 pt-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-500 font-bold text-slate-950">
-                  G
-                </div>
-                <div>
-                  <p className="text-lg font-semibold">Giro Líquido</p>
-                </div>
+        <div className="space-y-5 py-2">
+          <div className="flex items-center justify-between text-sm text-slate-300">
+            <span>
+              Etapa {currentStep + 1} de {steps.length}
+            </span>
+            <span>{Math.round(progressPercent)}%</span>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {currentStep === 0 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <CircleDollarSign className="h-6 w-6" />
               </div>
-              <Link href="/dashboard" className="text-sm text-slate-300 hover:text-white">
-                Explorar
-              </Link>
-            </div>
-
-            <Card className="overflow-hidden border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-              <div className="mb-5 inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-brand-300">
-                Bem-vindo
-              </div>
-
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                Bem-vindo, {firstName}!
-              </h1>
-
-              <p className="mt-4 text-base text-slate-300">
-                Vamos descobrir quanto realmente sobra no seu corre?
+              <h1 className="text-2xl font-semibold text-white">Vamos preparar seu painel.</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Em poucos passos, o RotaX entende seu perfil, seu jeito de trabalhar e o que precisa acompanhar para te ajudar a lucrar de verdade.
               </p>
 
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Em poucos passos, você organiza seus ganhos, gastos e acompanha seu lucro de verdade.
-              </p>
+              <div className="mt-5 space-y-4">
+                <label className="block space-y-2">
+                  <span className="text-sm text-slate-300">Nome completo</span>
+                  <input
+                    value={draft.fullName}
+                    onChange={(event) => updateDraft({ fullName: event.target.value })}
+                    placeholder="Seu nome"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                  />
+                </label>
 
-              <div className="mt-6 rounded-2xl border border-brand-500/25 bg-gradient-to-br from-brand-500/10 to-sky-500/10 p-4">
-                <div className="flex items-center justify-between text-sm text-slate-300">
-                  <span>Ganhos</span>
-                  <span>Saída</span>
-                  <span>Lucro</span>
-                </div>
+                <div className="grid grid-cols-[1fr_110px] gap-3">
+                  <label className="space-y-2">
+                    <span className="text-sm text-slate-300">Cidade</span>
+                    <input
+                      value={draft.city}
+                      onChange={(event) => updateDraft({ city: event.target.value })}
+                      placeholder="São Paulo"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                    />
+                  </label>
 
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Entrada</p>
-                    <p className="mt-2 text-lg font-semibold text-brand-300">R$ 200</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Saída</p>
-                    <p className="mt-2 text-lg font-semibold text-rose-300">-R$ 60</p>
-                  </div>
-                  <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-slate-200">Lucro</p>
-                    <p className="mt-2 text-lg font-semibold text-white">R$ 140</p>
-                  </div>
+                  <label className="space-y-2">
+                    <span className="text-sm text-slate-300">Estado</span>
+                    <input
+                      value={draft.state}
+                      onChange={(event) => updateDraft({ state: event.target.value.toUpperCase().slice(0, 2) })}
+                      placeholder="SP"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                    />
+                  </label>
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => {
-                    setWelcomeOpen(false);
-                    setCurrentStep(0);
-                  }}
-                >
-                  Começar configuração
-                </Button>
-                <Button variant="secondary" size="lg" className="flex-1" onClick={handleExplore}>
-                  Explorar sem configurar agora
+              <div className="mt-6 flex gap-3">
+                <Button type="button" className="flex-1" onClick={() => void saveProgressAndContinue(1)} disabled={saving}>
+                  {saving ? "Salvando..." : "Continuar"}
                 </Button>
               </div>
             </Card>
-          </section>
-        ) : (
-          <section className="space-y-5 py-2">
-            <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>
-                Etapa {currentStep + 1} de {steps.length}
-              </span>
-              <span>{Math.round(progressPercent)}%</span>
-            </div>
+          )}
 
-            <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full bg-brand-500 transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+          {currentStep === 1 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <Truck className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Como você trabalha?</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Esta escolha ajuda a deixar o dashboard mais útil para o seu dia a dia.
+              </p>
 
-            {currentStep === 0 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
-                  <CircleDollarSign className="h-6 w-6" />
-                </div>
-                <h2 className="text-2xl font-semibold text-white">Faturar não é a mesma coisa que lucrar.</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Se você recebeu R$ 200,00, mas gastou R$ 60,00 com combustível e alimentação,
-                  seu lucro foi R$ 140,00.
-                </p>
+              <div className="mt-6 space-y-3">
+                {workTypeOptions.map(({ id, label, description, icon: Icon }) => {
+                  const selected = draft.workType === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => updateDraft({ workType: id })}
+                      className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                        selected ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <span className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-brand-300">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="flex-1">
+                        <span className="block text-base font-medium text-white">{label}</span>
+                        <span className="mt-1 block text-sm text-slate-300">{description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                  <div className="flex items-center justify-between text-sm text-slate-300">
-                    <span>Ganhos</span>
-                    <span className="font-medium text-brand-300">{formatCurrency(200)}</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
-                    <span>Gastos</span>
-                    <span className="font-medium text-rose-300">- {formatCurrency(60)}</span>
-                  </div>
-                  <div className="mt-4 h-px bg-slate-800" />
-                  <div className="mt-4 flex items-center justify-between text-base font-semibold text-white">
-                    <span>Lucro real</span>
-                    <span>{formatCurrency(140)}</span>
-                  </div>
-                </div>
-
-                <p className="mt-5 text-sm leading-6 text-slate-400">
-                  O Giro Líquido ajuda você a acompanhar esse resultado todos os dias.
-                </p>
-
-                <Button className="mt-6 w-full" size="lg" onClick={goNext}>
-                  Entendi, continuar
+              <div className="mt-6 flex gap-3">
+                <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
                 </Button>
-              </Card>
-            )}
+                <Button type="button" className="flex-1" onClick={() => void saveProgressAndContinue(2)} disabled={saving}>
+                  {saving ? "Salvando..." : "Continuar"}
+                </Button>
+              </div>
+            </Card>
+          )}
 
-            {currentStep === 1 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <h2 className="text-2xl font-semibold text-white">Como é o seu corre?</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Vamos adaptar o Giro Líquido ao seu jeito de trabalhar.
-                </p>
+          {currentStep === 2 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <MapPin className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Seu veículo principal</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Você pode registrar um veículo agora ou continuar sem isso e ajustar depois.
+              </p>
 
-                <form
-                  className="mt-6 space-y-3"
-                  onSubmit={workTypeForm.handleSubmit((values) => {
-                    updateDraft({ workType: values.workType });
-                    goNext();
-                  })}
-                >
-                  {workTypeOptions.map(({ id, label, description, icon: Icon }) => {
-                    const selected = workTypeValue === id;
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                {vehicleOptions.map(({ id, label, icon: Icon }) => {
+                  const selected = draft.vehicleType === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => updateDraft({ vehicleType: id })}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        selected ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <Icon className="mb-3 h-5 w-5 text-brand-300" />
+                      <span className="block text-sm font-medium text-white">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => workTypeForm.setValue("workType", id, { shouldValidate: true })}
-                        className={`flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition ${
-                          selected
-                            ? "border-brand-500 bg-brand-500/10"
-                            : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
-                        }`}
-                      >
-                        <span className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-brand-300">
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <span className="flex-1">
-                          <span className="block text-base font-medium text-white">{label}</span>
-                          <span className="mt-1 block text-sm text-slate-300">{description}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-
-                  {workTypeForm.formState.errors.workType && (
-                    <p className="text-sm text-rose-300">Selecione uma opção para continuar.</p>
-                  )}
-
-                  <div className="mt-6 flex gap-3">
-                    <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
-                      <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                    </Button>
-                    <Button type="submit" className="flex-1">
-                      Continuar
-                    </Button>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="mt-2 w-full text-sm text-slate-300 underline-offset-4 hover:text-white hover:underline"
-                    onClick={goNext}
-                  >
-                    Pular por enquanto
-                  </button>
-                </form>
-              </Card>
-            )}
-
-            {currentStep === 2 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <h2 className="text-2xl font-semibold text-white">Você usa algum veículo para trabalhar?</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Isso ajuda a acompanhar quilômetros, combustível e manutenção.
-                </p>
-
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  {vehicleOptions.map(({ id, label, icon: Icon }) => {
-                    const selected = draft.vehicleType === id;
-
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        className={`rounded-2xl border p-4 text-left transition ${
-                          selected
-                            ? "border-brand-500 bg-brand-500/10"
-                            : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
-                        }`}
-                        onClick={() => updateDraft({ vehicleType: id })}
-                      >
-                        <Icon className="mb-3 h-5 w-5 text-brand-300" />
-                        <span className="block text-sm font-medium text-white">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {(draft.vehicleType === "moto" || draft.vehicleType === "carro") && (
-                  <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                    <div>
-                      <label className="mb-2 block text-sm text-slate-300">Nome do veículo</label>
-                      <input
-                        value={draft.vehicleName ?? ""}
-                        onChange={(event) => updateDraft({ vehicleName: event.target.value })}
-                        placeholder={draft.vehicleType === "moto" ? "Ex.: CG 160" : "Ex.: Corolla"}
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none ring-0 placeholder:text-slate-500 focus:border-brand-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-2 block text-sm text-slate-300">Marca/modelo</label>
-                        <input
-                          value={draft.vehicleBrand ?? ""}
-                          onChange={(event) => updateDraft({ vehicleBrand: event.target.value })}
-                          placeholder="Honda"
-                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm text-slate-300">Consumo</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={draft.averageConsumption ?? ""}
-                          onChange={(event) => updateDraft({ averageConsumption: event.target.value })}
-                          placeholder="35 km/l"
-                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-2 block text-sm text-slate-300">Combustível</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={draft.fuelPrice ?? ""}
-                          onChange={(event) => updateDraft({ fuelPrice: event.target.value })}
-                          placeholder="R$ 6,20"
-                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-2 block text-sm text-slate-300">Custo mensal</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={draft.monthlyCost ?? ""}
-                          onChange={(event) => updateDraft({ monthlyCost: event.target.value })}
-                          placeholder="R$ 180"
-                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                        />
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-3 text-sm text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={draft.vehicleIsDefault ?? true}
-                        onChange={(event) => updateDraft({ vehicleIsDefault: event.target.checked })}
-                        className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-                      />
-                      Usar como veículo principal.
-                    </label>
-                  </div>
-                )}
-
-                {draft.vehicleType === "bicicleta" && (
-                  <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
-                    <label className="mb-2 block text-slate-300">Nome da bicicleta</label>
-                    <input
-                      value={draft.vehicleName ?? ""}
-                      onChange={(event) => updateDraft({ vehicleName: event.target.value })}
-                      placeholder="Minha bike"
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                    />
-                  </div>
-                )}
-
-                {draft.vehicleType === "pedestre" && (
-                  <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm leading-6 text-slate-300">
-                    Sem problema. Você ainda pode registrar seus ganhos e despesas normalmente.
-                  </div>
-                )}
-
-                <div className="mt-6 flex gap-3">
-                  <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button type="button" className="flex-1" onClick={goNext}>
-                    Continuar
-                  </Button>
-                </div>
-
-                <button
-                  type="button"
-                  className="mt-2 w-full text-sm text-slate-300 underline-offset-4 hover:text-white hover:underline"
-                  onClick={goNext}
-                >
-                  Pular por enquanto
-                </button>
-              </Card>
-            )}
-
-            {currentStep === 3 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
-                  <Target className="h-6 w-6" />
-                </div>
-                <h2 className="text-2xl font-semibold text-white">Quer trabalhar com uma meta?</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Uma meta ajuda você a acompanhar quanto falta para chegar no resultado que quer.
-                </p>
-
-                <div className="mt-6 grid gap-3">
-                  {[
-                    {
-                      id: "revenue",
-                      label: "Faturamento",
-                      note: "Quanto entra antes dos gastos.",
-                    },
-                    {
-                      id: "profit",
-                      label: "Lucro",
-                      note: "Quanto realmente sobra depois dos gastos.",
-                    },
-                    {
-                      id: "later",
-                      label: "Criar depois",
-                      note: "Você poderá definir uma meta quando quiser.",
-                    },
-                  ].map((item) => {
-                    const selected = draft.goalType === item.id;
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => updateDraft({ goalType: item.id as OnboardingDraft["goalType"] })}
-                        className={`rounded-2xl border p-4 text-left transition ${
-                          selected
-                            ? "border-brand-500 bg-brand-500/10"
-                            : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
-                        }`}
-                      >
-                        <span className="block text-base font-medium text-white">{item.label}</span>
-                        <span className="mt-1 block text-sm text-slate-300">{item.note}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {draft.goalType === "revenue" || draft.goalType === "profit" ? (
-                  <div className="mt-5 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-                    <div>
-                      <label className="mb-2 block text-sm text-slate-300">Período</label>
-                      <select
-                        value={draft.goalPeriod ?? "monthly"}
-                        onChange={(event) =>
-                          updateDraft({ goalPeriod: event.target.value as OnboardingDraft["goalPeriod"] })
-                        }
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
-                      >
-                        <option value="daily">Diário</option>
-                        <option value="weekly">Semanal</option>
-                        <option value="monthly">Mensal</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm text-slate-300">Valor da meta</label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        value={draft.goalTarget ?? ""}
-                        onChange={(event) => updateDraft({ goalTarget: event.target.value })}
-                        placeholder="R$ 500,00"
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm text-slate-300">Nome da meta</label>
-                      <input
-                        value={draft.goalName ?? (draft.goalType === "profit" ? "Meta de lucro" : "Meta de faturamento")}
-                        onChange={(event) => updateDraft({ goalName: event.target.value })}
-                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex gap-3">
-                  <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button type="button" className="flex-1" onClick={goNext}>
-                    Continuar
-                  </Button>
-                </div>
-
-                <button
-                  type="button"
-                  className="mt-2 w-full text-sm text-slate-300 underline-offset-4 hover:text-white hover:underline"
-                  onClick={goNext}
-                >
-                  Pular meta por enquanto
-                </button>
-              </Card>
-            )}
-
-            {currentStep === 4 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
-                  <Wallet className="h-6 w-6" />
-                </div>
-                <h2 className="text-2xl font-semibold text-white">Vamos registrar um ganho?</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Pode ser o valor que você recebeu hoje. Você poderá editar ou adicionar mais
-                  lançamentos depois.
-                </p>
-
-                <div className="mt-6 grid gap-3">
-                  <Button size="lg" onClick={() => updateDraft({ firstEarningAmount: draft.firstEarningAmount ?? "" })}>
-                    Registrar um ganho agora
-                  </Button>
-                  <Button variant="secondary" size="lg" onClick={goNext}>
-                    Vou fazer isso depois
-                  </Button>
-                </div>
-
+              {draft.vehicleType !== "other" && draft.vehicleType !== "walking" && (
                 <div className="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
                   <div>
-                    <label className="mb-2 block text-sm text-slate-300">Valor recebido</label>
+                    <label className="mb-2 block text-sm text-slate-300">Nome do veículo</label>
                     <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={draft.firstEarningAmount ?? ""}
-                      onChange={(event) => updateDraft({ firstEarningAmount: event.target.value })}
-                      placeholder="R$ 120,00"
+                      value={draft.vehicleName}
+                      onChange={(event) => updateDraft({ vehicleName: event.target.value })}
+                      placeholder={draft.vehicleType === "motorcycle" ? "CG 160" : "Corolla"}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
                     />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm text-slate-300">Plataforma</label>
-                    <select
-                      value={draft.firstEarningPlatform ?? "ifood"}
-                      onChange={(event) => updateDraft({ firstEarningPlatform: event.target.value })}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
-                    >
-                      <option value="ifood">iFood</option>
-                      <option value="rappi">Rappi</option>
-                      <option value="uber">Uber</option>
-                      <option value="99">99</option>
-                      <option value="lalamove">Lalamove</option>
-                      <option value="particular">Particular</option>
-                      <option value="outros">Outros</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-2 block text-sm text-slate-300">Marca</label>
+                      <input
+                        value={draft.vehicleBrand}
+                        onChange={(event) => updateDraft({ vehicleBrand: event.target.value })}
+                        placeholder="Honda"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm text-slate-300">Modelo</label>
+                      <input
+                        value={draft.vehicleModel}
+                        onChange={(event) => updateDraft({ vehicleModel: event.target.value })}
+                        placeholder="CG 160"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-2 block text-sm text-slate-300">Km/l</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={draft.averageConsumption}
+                        onChange={(event) => updateDraft({ averageConsumption: event.target.value })}
+                        placeholder="35"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm text-slate-300">Combustível</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={draft.fuelPrice}
+                        onChange={(event) => updateDraft({ fuelPrice: event.target.value })}
+                        placeholder="R$ 6,20"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                      />
+                    </div>
                   </div>
 
                   <label className="flex items-center gap-3 text-sm text-slate-300">
                     <input
                       type="checkbox"
-                      checked={draft.firstEarningHasBonus ?? false}
-                      onChange={(event) => updateDraft({ firstEarningHasBonus: event.target.checked })}
+                      checked={draft.isVehicleDefault}
+                      onChange={(event) => updateDraft({ isVehicleDefault: event.target.checked })}
                       className="h-4 w-4 rounded border-slate-600 bg-slate-900"
                     />
-                    Teve gorjeta ou bônus?
+                    Definir como veículo principal
                   </label>
+                </div>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+                </Button>
+                <Button type="button" className="flex-1" onClick={() => void saveProgressAndContinue(3)} disabled={saving}>
+                  {saving ? "Salvando..." : "Continuar"}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {currentStep === 3 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <Wallet className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Onde você ganha?</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Selecione as fontes principais do seu faturamento para organizar o painel.
+              </p>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {platformOptions.map((platform) => {
+                  const selected = draft.platforms.includes(platform.slug);
+                  return (
+                    <button
+                      key={platform.id}
+                      type="button"
+                      onClick={() => {
+                        const nextPlatforms = selected
+                          ? draft.platforms.filter((value) => value !== platform.slug)
+                          : [...draft.platforms, platform.slug];
+                        updateDraft({ platforms: nextPlatforms });
+                      }}
+                      className={`rounded-2xl border p-3 text-left transition ${
+                        selected ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <span className="block text-sm font-medium text-white">{platform.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+                </Button>
+                <Button type="button" className="flex-1" onClick={() => void saveProgressAndContinue(4)} disabled={saving}>
+                  {saving ? "Salvando..." : "Continuar"}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {currentStep === 4 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <Target className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Defina sua primeira meta</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Você pode marcar um alvo de faturamento ou lucro para manter o foco no dia a dia.
+              </p>
+
+              <div className="mt-6 grid gap-3">
+                {[
+                  { id: "profit", label: "Lucro", note: "Acompanhar o que sobra ao final do dia." },
+                  { id: "revenue", label: "Faturamento", note: "Seguir o valor bruto que entrou." },
+                  { id: "later", label: "Criar depois", note: "Não quero definir agora." },
+                ].map((item) => {
+                  const selected = draft.goalType === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => updateDraft({ goalType: item.id as GoalType })}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        selected ? "border-brand-500 bg-brand-500/10" : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <span className="block text-base font-medium text-white">{item.label}</span>
+                      <span className="mt-1 block text-sm text-slate-300">{item.note}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {draft.goalType !== "later" && (
+                <div className="mt-5 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">Período</label>
+                    <select
+                      value={draft.goalPeriod}
+                      onChange={(event) => updateDraft({ goalPeriod: event.target.value as GoalPeriod })}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
+                    >
+                      <option value="daily">Diário</option>
+                      <option value="weekly">Semanal</option>
+                      <option value="monthly">Mensal</option>
+                    </select>
+                  </div>
 
                   <div>
-                    <label className="mb-2 block text-sm text-slate-300">Descrição</label>
+                    <label className="mb-2 block text-sm text-slate-300">Valor da meta</label>
                     <input
-                      value={draft.firstEarningDescription ?? ""}
-                      onChange={(event) => updateDraft({ firstEarningDescription: event.target.value })}
-                      placeholder="Entrega do dia"
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={draft.goalTarget}
+                      onChange={(event) => updateDraft({ goalTarget: event.target.value })}
+                      placeholder="R$ 800,00"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-slate-300">Nome da meta</label>
+                    <input
+                      value={draft.goalName}
+                      onChange={(event) => updateDraft({ goalName: event.target.value })}
+                      placeholder={draft.goalType === "profit" ? "Meta de lucro" : "Meta de faturamento"}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white placeholder:text-slate-500 focus:border-brand-500"
                     />
                   </div>
                 </div>
+              )}
 
-                <div className="mt-6 flex gap-3">
-                  <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                  </Button>
-                  <Button type="button" className="flex-1" onClick={goNext}>
-                    Continuar
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            {currentStep === 5 && (
-              <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
-                  <Check className="h-6 w-6" />
-                </div>
-                <h2 className="text-2xl font-semibold text-white">Seu painel está pronto.</h2>
-
-                <div className="mt-6 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
-                  <p className="font-medium text-white">Você pode começar por:</p>
-                  <ul className="space-y-2">
-                    <li>• Registrar ganhos.</li>
-                    <li>• Registrar gastos.</li>
-                    <li>• Acompanhar lucro real.</li>
-                    <li>• Criar metas.</li>
-                    <li>• Consultar relatórios.</li>
-                  </ul>
-                </div>
-
-                <p className="mt-5 text-sm leading-6 text-slate-300">
-                  Quanto mais completo estiver seu registro, mais perto o painel ficará da realidade do seu trabalho.
-                </p>
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Button size="lg" className="flex-1" onClick={finishOnboarding}>
-                    Ir para meu painel
-                  </Button>
-                  <Button variant="secondary" size="lg" className="flex-1" onClick={handleExplore}>
-                    Ver tutorial rápido
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            {isQuestionStep && (
-              <div className="text-center text-xs uppercase tracking-[0.2em] text-slate-500">
-                Progresso do onboarding
+              <div className="mt-6 flex gap-3">
+                <Button type="button" variant="secondary" className="flex-1" onClick={goBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+                </Button>
+                <Button type="button" className="flex-1" onClick={() => void saveProgressAndContinue(5)} disabled={saving}>
+                  {saving ? "Salvando..." : "Continuar"}
+                </Button>
               </div>
-            )}
-          </section>
-        )}
+            </Card>
+          )}
+
+          {currentStep === 5 && (
+            <Card className="border-slate-800 bg-slate-900/80 p-5 sm:p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500/10 text-brand-300">
+                <Check className="h-6 w-6" />
+              </div>
+              <h2 className="text-2xl font-semibold text-white">Seu painel está pronto.</h2>
+
+              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
+                <p className="font-medium text-white">Resumo da configuração</p>
+                <ul className="mt-3 space-y-2">
+                  <li>• Trabalho: {workTypeOptions.find((item) => item.id === draft.workType)?.label ?? "Não informado"}</li>
+                  <li>• Veículo: {draft.vehicleType === "other" ? "Não cadastrado agora" : currentVehicleLabel}</li>
+                  <li>• Meta: {draft.goalType === "later" ? "Definir depois" : `${draft.goalName || (draft.goalType === "profit" ? "Meta de lucro" : "Meta de faturamento")}: ${formatCurrency(draft.goalTarget || 0)}`}</li>
+                  <li>• Plataformas: {draft.platforms.length > 0 ? draft.platforms.length : "Nenhuma selecionada"}</li>
+                </ul>
+              </div>
+
+              {errorMessage && <p className="mt-4 text-sm text-red-300">{errorMessage}</p>}
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Button type="button" size="lg" className="flex-1" onClick={() => void finishOnboarding()} disabled={saving}>
+                  {saving ? "Finalizando..." : "Ir para o painel"}
+                </Button>
+                <Button type="button" variant="secondary" size="lg" className="flex-1" onClick={() => router.push("/dashboard")}>
+                  Explorar sem salvar
+                </Button>
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
     </main>
   );

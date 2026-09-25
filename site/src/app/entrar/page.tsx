@@ -12,10 +12,10 @@ export default function EntrarPage() {
           <CardHeader className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">
-                G
+                R
               </div>
               <div>
-                <p className="text-lg font-semibold">Giro Líquido</p>
+                <p className="text-lg font-semibold">RotaX</p>
                 <p className="text-sm text-slate-400">Acesse sua conta</p>
               </div>
             </div>

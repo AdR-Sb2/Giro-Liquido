@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPaths = [
   "/dashboard",
-  "/onboarding",
   "/ganhos",
   "/despesas",
   "/turnos",
@@ -38,21 +37,41 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
   const isProtected = protectedPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (isProtected && !user) {
     return NextResponse.redirect(new URL("/entrar", request.url));
   }
 
-  if ((pathname === "/entrar" || pathname === "/cadastro") && user) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const onboardingCompleted = Boolean(profile?.onboarding_completed);
+
+    if (pathname === "/onboarding" && onboardingCompleted) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (pathname !== "/onboarding" && isProtected && !onboardingCompleted) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
+
+    if ((pathname === "/entrar" || pathname === "/cadastro") && user) {
+      return NextResponse.redirect(
+        new URL(onboardingCompleted ? "/dashboard" : "/onboarding", request.url),
+      );
+    }
   }
 
   return response;

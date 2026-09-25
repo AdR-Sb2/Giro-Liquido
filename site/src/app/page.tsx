@@ -34,9 +34,9 @@ export default function Home() {
       <header className="sticky top-4 z-20 mb-8 flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 backdrop-blur sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">
-            G
+            R
           </div>
-          <span className="text-lg font-semibold">Giro Líquido</span>
+          <span className="text-lg font-semibold">RotaX</span>
         </div>
 
         <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
@@ -65,7 +65,7 @@ export default function Home() {
               Veja o lucro real do seu dia, semana e mês.
             </h1>
             <p className="max-w-xl text-lg text-slate-300">
-              O Giro Líquido ajuda entregadores, motoboys e profissionais autônomos a registrar
+              O RotaX ajuda entregadores, motoboys e profissionais autônomos a registrar
               ganhos, despesas, veículos e metas em um único painel claro e seguro.
             </p>
           </div>
@@ -166,7 +166,7 @@ export default function Home() {
           <div className="mb-4 inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-4 py-2 text-sm font-medium text-brand-300">
             Grátis para sempre
           </div>
-          <h3 className="text-3xl font-semibold text-white">Giro Líquido</h3>
+          <h3 className="text-3xl font-semibold text-white">RotaX</h3>
           <p className="mt-4 text-lg text-slate-300">
             Sem mensalidade, sem cobrança escondida e sem limite para começar a organizar seus ganhos,
             despesas e metas do dia a dia.

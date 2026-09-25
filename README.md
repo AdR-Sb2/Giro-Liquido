@@ -1,4 +1,4 @@
-# Giro Líquido
+# RotaX
 
 Backend Supabase para o SaaS de controle financeiro de entregadores e profissionais autônomos.
 

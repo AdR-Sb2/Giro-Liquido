@@ -112,9 +112,9 @@ export function AppShell({ title, children }: { title: string; children: React.R
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 pb-24 lg:px-8 lg:pb-6">
         <aside className="hidden w-72 shrink-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 lg:block">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">G</div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">R</div>
             <div>
-              <p className="text-lg font-semibold">Giro Líquido</p>
+              <p className="text-lg font-semibold">RotaX</p>
               <p className="text-xs text-slate-400">Painel do motorista</p>
             </div>
           </div>
@@ -137,9 +137,9 @@ export function AppShell({ title, children }: { title: string; children: React.R
         >
           <div className="mb-6 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">G</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-slate-950">R</div>
               <div>
-                <p className="text-base font-semibold">Giro Líquido</p>
+                <p className="text-base font-semibold">RotaX</p>
                 <p className="text-[11px] text-slate-400">Painel do motorista</p>
               </div>
             </div>
@@ -178,7 +178,7 @@ export function AppShell({ title, children }: { title: string; children: React.R
                 </button>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-brand-300">Giro Líquido</p>
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-brand-300">RotaX</p>
                   <h1 className="mt-1 text-xl font-semibold text-white sm:text-2xl">{title}</h1>
                 </div>
               </div>
