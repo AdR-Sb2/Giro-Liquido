@@ -63,6 +63,10 @@ type OnboardingDraft = {
 
 const defaultDraft: OnboardingDraft = {
   currentStep: 0,
+  vehicleType: "nao_quero",
+  vehicleIsDefault: true,
+  goalType: "later",
+  goalPeriod: "monthly",
 };
 
 const workTypeOptions = [
@@ -128,47 +132,53 @@ function formatCurrency(value: number | string | null | undefined) {
   }).format(numeric);
 }
 
+function readStoredDraft(): OnboardingDraft {
+  if (typeof window === "undefined") {
+    return defaultDraft;
+  }
+
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return defaultDraft;
+    }
+
+    const parsed = JSON.parse(saved) as Partial<OnboardingDraft>;
+    return {
+      ...defaultDraft,
+      ...parsed,
+      currentStep: parsed.currentStep ?? 0,
+    };
+  } catch {
+    return defaultDraft;
+  }
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [draft, setDraft] = useState<OnboardingDraft>(defaultDraft);
+  const [currentStep, setCurrentStep] = useState(() => readStoredDraft().currentStep);
+  const [draft, setDraft] = useState<OnboardingDraft>(() => readStoredDraft());
   const [firstName, setFirstName] = useState("motorista");
-  const [hasHydrated, setHasHydrated] = useState(false);
 
   const workTypeForm = useForm<z.infer<typeof workTypeSchema>>({
     resolver: zodResolver(workTypeSchema),
-    defaultValues: {},
+    defaultValues: {
+      workType: draft.workType ?? "delivery",
+    },
   });
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as Partial<OnboardingDraft>;
-        setDraft({ ...defaultDraft, ...parsed, currentStep: parsed.currentStep ?? 0 });
-        setCurrentStep(parsed.currentStep ?? 0);
-      } catch {
-        setDraft({ ...defaultDraft });
-      }
-    }
-
     const supabase = getSupabaseBrowserClient();
     void supabase.auth.getUser().then(({ data }) => {
       const fullName = data.user?.user_metadata?.full_name ?? data.user?.email ?? "motorista";
       const label = String(fullName).trim().split(" ")[0] || "motorista";
       setFirstName(label);
     });
-
-    setHasHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hasHydrated) {
-      return;
-    }
-
     const payload = JSON.stringify({
       ...draft,
       currentStep,
@@ -177,7 +187,7 @@ export default function OnboardingPage() {
     });
 
     window.localStorage.setItem(STORAGE_KEY, payload);
-  }, [currentStep, draft, hasHydrated]);
+  }, [currentStep, draft]);
 
   useEffect(() => {
     if (draft.workType) {
@@ -218,7 +228,7 @@ export default function OnboardingPage() {
     router.push("/dashboard");
   }
 
-  const workTypeValue = workTypeForm.watch("workType");
+  const workTypeValue = draft.workType ?? workTypeForm.getValues("workType");
 
   const progressPercent = ((currentStep + 1) / steps.length) * 100;
 
@@ -509,7 +519,7 @@ export default function OnboardingPage() {
                     <label className="flex items-center gap-3 text-sm text-slate-300">
                       <input
                         type="checkbox"
-                        checked={draft.vehicleIsDefault ?? false}
+                        checked={draft.vehicleIsDefault ?? true}
                         onChange={(event) => updateDraft({ vehicleIsDefault: event.target.checked })}
                         className="h-4 w-4 rounded border-slate-600 bg-slate-900"
                       />
@@ -608,13 +618,12 @@ export default function OnboardingPage() {
                     <div>
                       <label className="mb-2 block text-sm text-slate-300">Período</label>
                       <select
-                        value={draft.goalPeriod ?? ""}
+                        value={draft.goalPeriod ?? "monthly"}
                         onChange={(event) =>
                           updateDraft({ goalPeriod: event.target.value as OnboardingDraft["goalPeriod"] })
                         }
                         className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
                       >
-                        <option value="">Selecione o período</option>
                         <option value="daily">Diário</option>
                         <option value="weekly">Semanal</option>
                         <option value="monthly">Mensal</option>
@@ -701,11 +710,10 @@ export default function OnboardingPage() {
                   <div>
                     <label className="mb-2 block text-sm text-slate-300">Plataforma</label>
                     <select
-                      value={draft.firstEarningPlatform ?? ""}
+                      value={draft.firstEarningPlatform ?? "ifood"}
                       onChange={(event) => updateDraft({ firstEarningPlatform: event.target.value })}
                       className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white focus:border-brand-500"
                     >
-                      <option value="">Selecione a plataforma</option>
                       <option value="ifood">iFood</option>
                       <option value="rappi">Rappi</option>
                       <option value="uber">Uber</option>
